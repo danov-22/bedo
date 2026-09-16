@@ -2,6 +2,7 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { chromium } = require(path.join(process.env.TEMP, 'blockday-ui-tests/node_modules/playwright'));
+const base = process.env.BLOCKDAY_TEST_BASE || 'http://localhost:8765';
 (async () => {
   const browser = await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
   try {
@@ -9,7 +10,7 @@ const { chromium } = require(path.join(process.env.TEMP, 'blockday-ui-tests/node
       const context=await browser.newContext({viewport:{width,height},hasTouch:name!=='desktop'});
       const page=await context.newPage(),errors=[];
       page.on('pageerror',e=>errors.push(e.message));
-      await page.goto('http://localhost:8765/',{waitUntil:'domcontentloaded'});
+      await page.goto(base+'/',{waitUntil:'domcontentloaded'});
       await page.locator('.bd-hero').waitFor();
       assert.equal(await page.evaluate(()=>document.querySelector('.bd-landing').scrollWidth<=innerWidth),true,'landing fits viewport');
       await page.screenshot({path:path.join(process.env.TEMP,`blockday-landing-${name}.png`)});
@@ -61,7 +62,7 @@ const { chromium } = require(path.join(process.env.TEMP, 'blockday-ui-tests/node
       assert(await page.evaluate(()=>Boolean(localStorage.getItem('blockday-quick-note-position'))),'FAB position saved');
       await page.locator('#bd-fab').click();await page.locator('#bd-note-form').waitFor();await page.locator('[data-action=close]').click();
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'app fits viewport');
-      await page.locator('.bd-exit').click();await page.waitForURL('http://localhost:8765/');
+      await page.locator('.bd-exit').click();await page.waitForURL(base+'/');
       assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('blockday-blocks'))[0].id),'real-private','demo exit restores original data');
       assert.deepEqual(errors,[],`no page errors at ${name} width`);
       console.log(`PASS ${name}: landing, demo, calendar/day/week, drag isolation, repeat, filters, notes, insights, theme, demo restore`);
