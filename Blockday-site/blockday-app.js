@@ -70,7 +70,9 @@
   }
   function dayStatus(day) {
     if(!blocks.some(b=>b.date===dateKey(day)))return '';
-    const completed=dayCompleted(day),label=completed?'All blocks completed. Nice work!':'Blocks still to finish. One step at a time.';
+    const completed=dayCompleted(day),now=new Date(),today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    if(!completed && new Date(day.getFullYear(),day.getMonth(),day.getDate())>=today)return '';
+    const label=completed?'All blocks completed. Nice work!':'Past day with unfinished blocks. One step at a time.';
     return `<span class="bd-day-celebration bd-day-status ${completed?'bd-day-completed':'bd-day-incomplete'}" role="img" aria-label="${label}" title="${label}">${completed?'🎯':'🎗️'}</span>`;
   }
   function nav() { return ['calendar','brainstorm','insights','settings'].map(p => `<button data-page="${p}" class="${page===p?'active':''}"><span aria-hidden="true">${icons[p]}</span>${p==='calendar'?'Timeblock':p[0].toUpperCase()+p.slice(1)}</button>`).join(''); }
@@ -97,7 +99,7 @@
     let html='<div class="bd-month">'+['MON','TUE','WED','THU','FRI','SAT','SUN'].map(d=>`<div class="bd-month-head">${d}</div>`).join('');
     for(let i=0;i<42;i++) {
       const d=new Date(start);d.setDate(start.getDate()+i);const list=visible(d),complete=dayCompleted(d);
-      html+=`<button class="bd-month-day ${d.getMonth()!==month.getMonth()?'muted':''} ${dateKey(d)===dateKey(new Date())?'today':''}" data-date="${dateKey(d)}" aria-label="${esc(dateLabel(d,{dateStyle:'full'}))}, ${list.length} blocks${complete?', All blocks completed. Nice work!':''}"><span>${d.getDate()}</span>${dayStatus(d)}<div class="bd-day-dots">${list.slice(0,3).map(b=>`<i class="${tint(category(b))}"></i>`).join('')}</div><div class="bd-month-events">${list.slice(0,2).map(b=>`<small class="${tint(category(b))}">${esc(b.title)}</small>`).join('')}${list.length>2?`<em>+${list.length-2} more</em>`:''}</div></button>`;
+      html+=`<button class="bd-month-day ${d.getMonth()!==month.getMonth()?'muted':''} ${dateKey(d)===dateKey(new Date())?'today':''}" data-date="${dateKey(d)}" aria-label="${esc(dateLabel(d,{dateStyle:'full'}))}, ${list.length} blocks${complete?', All blocks completed. Nice work!':''}"><span class="bd-date-number">${d.getDate()}</span>${dayStatus(d)}<div class="bd-day-dots">${list.slice(0,3).map(b=>`<i class="${tint(category(b))}"></i>`).join('')}</div><div class="bd-month-events">${list.slice(0,2).map(b=>`<small class="${tint(category(b))}">${esc(b.title)}</small>`).join('')}${list.length>2?`<em>+${list.length-2} more</em>`:''}</div></button>`;
     }
     return html+'</div>';
   }
@@ -123,7 +125,7 @@
       ['See one part of life at a time', 'Use the category chips above the calendar to filter your blocks. Add your own comma-separated categories in Settings. “All” brings everything back; filtering never deletes a block.'],
       ['Turn a thought into a plan', 'In Brainstorm, choose “Add to schedule” on a note. It pre-fills a new block without removing the original note. The floating pencil captures notes from any page—drag it to a comfortable spot.'],
       ['Notice your weekly motion', 'Insights follows the week containing your selected calendar day. Its completed time counts finished blocks, not just planned hours. Check off blocks to see your progress build.'],
-      ['Celebrate a little win', 'Days with blocks show 🎗️ while anything is unfinished, and 🎯 when every block is checked off. It counts every category, even while you are viewing just one. Empty days do not get a marker.'],
+      ['Celebrate a little win', 'A 🎯 appears when every block on a day is checked off. Past days with unfinished blocks show 🎗️; today and future unfinished days stay unmarked. It counts every category, even while you are viewing just one. Empty days do not get a marker.'],
       ['Choose colors of your own', 'In Settings, enter a custom hex color (such as #7C5CE7), or use the color picker, then choose “Use custom color”. Backgrounds follow your color in both light and dark mode. Pick a preset to switch back.'],
       ['Share a view, not your workspace', 'After signing in, “Share schedule” publishes a read-only snapshot. Your private Brainstorm notes stay private. Later edits do not update that snapshot; publish again to share a newer view, or disable its link.']
     ];
