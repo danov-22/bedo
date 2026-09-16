@@ -31,6 +31,12 @@ Upload `dist/public` to a static web host. The Google Sheets connector and setup
 
 ## Launch configuration
 
+The September redesign uses `Blockday-site/blockday-app.js` and `blockday-app.css` as the visible interface. The legacy minified bundle and enhancement styles remain on disk for reference but are no longer loaded. Authentication and background sync remain in their separate existing scripts.
+
+The planner opens in Calendar view. Choose a day to open its timeline, or use Week for a seven-day overview (a day selector on phones/tablets). Drag a block by its handle with touch or a mouse; only that dated occurrence changes. Explicit daily, weekday, or weekly repeats create four weeks of independent occurrences. Categories are stored per block and editable in Settings. Brainstorm notes can become blocks; Insights use completed blocks for the selected week. Existing block records and storage keys are preserved.
+
+Browser regression coverage is in `tests/redesign.cjs`; it uses Playwright with installed Chrome, a local server on port 8765, and temporary screenshots outside the repository.
+
 1. Create a Google OAuth Web client and add the production site as an authorized JavaScript origin.
 2. Paste the client ID into `Blockday-site/auth-config.js`.
 3. Deploy `Google-Apps-Script/Code.gs` as a web app and set its `OAUTH_CLIENT_ID` script property to the same client ID.

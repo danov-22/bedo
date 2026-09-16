@@ -47,11 +47,12 @@
     demoKeys.forEach(key => localStorage.removeItem(key));
     const now = new Date(), key = [now.getFullYear(), now.getMonth() + 1, now.getDate()].join("-");
     localStorage.setItem("blockday-blocks", JSON.stringify([
-      { id: "demo-1", title: "Deep work", start: 9 + 10 / 60, duration: 1.25, date: key, color: "green", completed: false },
-      { id: "demo-2", title: "Walk + reset", start: 11 + 35 / 60, duration: .5, date: key, color: "gold", completed: true },
-      { id: "demo-3", title: "Build the next thing", start: 13.25, duration: 1 + 25 / 60, date: key, color: "blue", completed: false }
+      { id: "demo-1", title: "Deep work", category: "Work", start: 9 + 10 / 60, duration: 1.25, date: key, color: "green", completed: false },
+      { id: "demo-2", title: "Walk + reset", category: "Wellness", start: 11 + 35 / 60, duration: .5, date: key, color: "gold", completed: true },
+      { id: "demo-3", title: "Build the next thing", category: "Personal", start: 13.25, duration: 1 + 25 / 60, date: key, color: "blue", completed: false }
     ]));
     localStorage.setItem("blockday-profile", JSON.stringify({ name: "Jamie", title: "Jamie’s Blockday", theme: "sage" }));
+    localStorage.setItem("blockday-ideas", JSON.stringify([{ id: "demo-note-1", text: "A little idea for the weekend: take the camera out, find a new walking route, and make time for something creative.", created: new Date().toISOString() }]));
     localStorage.setItem("blockday-calendar-hours", JSON.stringify({ start: 7, end: 18 }));
     localStorage.setItem("blockday-appscript", "false");
   }
@@ -65,15 +66,12 @@
     const screen = document.createElement("main");
     screen.id = "blockday-login";
     screen.className = "login-screen";
-    screen.innerHTML = '<div class="landing-shell"><nav class="landing-nav"><a class="landing-brand" href="/"><img src="/favicon.svg" alt="">Blockday</a><a href="#demo">Demo</a><a href="#features">Features</a><a href="#pricing">Price</a><a class="button" href="/login">Sign in</a></nav><section class="landing-hero"><div><span class="eyebrow">Your day, in your hands</span><h1>Make time feel like yours again.</h1><p>A private planner for precise time blocks, personal themes, and schedules you share only when you choose.</p><div class="landing-actions"><div id="blockday-google-button"></div><button class="button" type="button" data-open-demo>Try the demo app</button></div><p class="login-note"></p></div><div class="demo-window" id="demo" aria-label="Blockday demo"><div class="demo-top"><i></i><span>Jamie’s Blockday</span><b>Tuesday</b></div><div class="demo-grid"><time>9:00</time><article class="demo-block a"><strong>Deep work</strong><span>9:10–10:25</span></article><time>11:00</time><article class="demo-block b"><strong>Walk + reset</strong><span>11:35–12:05</span></article><time>1:00</time><article class="demo-block c"><strong>Build the next thing</strong><span>1:15–2:40</span></article></div></div></section><section class="landing-feature-section" id="features"><span class="eyebrow">More than event storage</span><h2>Plan the day. Work the plan. Learn what works.</h2><p>Blockday is a calm daily workspace for the time between your appointments.</p><div class="landing-features"><article><b>Shape today precisely</b><span>Build flexible blocks with five-minute precision instead of squeezing life into whole hours.</span></article><article><b>Adjust without guilt</b><span>Move, shorten, complete, or reset blocks when the day changes. The plan serves you.</span></article><article><b>Carry helpful routines</b><span>Save the patterns that support you and bring them back without rebuilding every day.</span></article><article><b>Capture before you forget</b><span>Use the brainstorm room for loose ideas, then turn the right ones into scheduled action.</span></article><article><b>Notice your momentum</b><span>See completion, focused time, streaks, and weekly patterns without turning life into pressure.</span></article><article><b>Private until you share</b><span>Your account stays personal. Publish a read-only schedule only when someone needs to see it.</span></article></div></section><section class="landing-price" id="pricing"><span class="eyebrow">Simple ownership</span><h2>One purchase. It keeps getting better.</h2><p>No tiers and no subscription. Launch target: <strong>Rp50.000</strong> (final payment setup can follow).</p></section><footer class="landing-footer">© Blockday · Calm planning, privately held.</footer></div>';
+    screen.innerHTML = '<section><div id="blockday-google-button"></div><p class="login-note"></p></section>';
     document.body.appendChild(screen);
-    screen.querySelector(".landing-price h2").textContent = "One purchase. Access continuous updates.";
-    screen.querySelector(".landing-price").insertAdjacentHTML("beforeend", '<a class="button primary landing-register" href="/login">Register with Google</a>');
-    screen.querySelector("[data-open-demo]").addEventListener("click", enterDemo);
     if (!configured) {
-      screen.querySelector(".login-note").textContent = "Google sign-in needs its OAuth Client ID before launch. Add it in auth-config.js.";
+      screen.querySelector(".login-note").textContent = "Google sign-in is not available yet. Explore the demo without an account.";
       screen.querySelector("#blockday-google-button").innerHTML = '<button class="button primary" type="button" data-google-not-ready>Sign in / Register with Google</button>';
-      screen.querySelector("[data-google-not-ready]").addEventListener("click", () => { screen.querySelector(".login-note").textContent = "Google sign-in is not active yet. Add the OAuth Client ID in auth-config.js to enable registration."; });
+      screen.querySelector("[data-google-not-ready]").addEventListener("click", () => { screen.querySelector(".login-note").textContent = "We’re preparing Google sign-in. In the meantime, the demo is yours to explore."; });
     }
   }
   async function handleCredential(response) {
@@ -116,11 +114,11 @@
   }
   function signOut() {
     if (!confirm("Sign out of Blockday on this device? Your local data will remain here.")) return;
-    switchWorkspace(""); google?.accounts?.id?.disableAutoSelect();
+    switchWorkspace(""); window.google?.accounts?.id?.disableAutoSelect();
     localStorage.removeItem(credentialKey); localStorage.removeItem(userKey); localStorage.removeItem(sessionKey); localStorage.removeItem("blockday-welcome-complete"); location.href = "/";
   }
   function switchAccount() {
-    switchWorkspace(""); google?.accounts?.id?.disableAutoSelect();
+    switchWorkspace(""); window.google?.accounts?.id?.disableAutoSelect();
     localStorage.removeItem(credentialKey); localStorage.removeItem(userKey); localStorage.removeItem(sessionKey); localStorage.removeItem("blockday-welcome-complete"); location.href = "/login";
   }
   window.BlockdayAuth = { signOut, switchAccount, currentUser };
