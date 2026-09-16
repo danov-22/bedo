@@ -39,18 +39,39 @@
     demoKeys.forEach(key => localStorage.removeItem(key));
     Object.keys(backup).forEach(key => localStorage.setItem(key, backup[key]));
     localStorage.removeItem(demoBackupKey);
+    localStorage.removeItem("blockday-demo-seed-version");
   }
   function prepareDemo() {
-    if (localStorage.getItem(demoBackupKey)) return;
-    const backup = {}; demoKeys.forEach(key => { const value = localStorage.getItem(key); if (value !== null) backup[key] = value; });
-    localStorage.setItem(demoBackupKey, JSON.stringify(backup));
-    demoKeys.forEach(key => localStorage.removeItem(key));
+    if (localStorage.getItem(demoBackupKey) && localStorage.getItem("blockday-demo-seed-version") === "2") return;
+    if (!localStorage.getItem(demoBackupKey)) {
+      const backup = {}; demoKeys.forEach(key => { const value = localStorage.getItem(key); if (value !== null) backup[key] = value; });
+      localStorage.setItem(demoBackupKey, JSON.stringify(backup));
+      demoKeys.forEach(key => localStorage.removeItem(key));
+    }
     const now = new Date(), key = [now.getFullYear(), now.getMonth() + 1, now.getDate()].join("-");
-    localStorage.setItem("blockday-blocks", JSON.stringify([
+    const samples = [
       { id: "demo-1", title: "Deep work", category: "Work", start: 9 + 10 / 60, duration: 1.25, date: key, color: "green", completed: false },
       { id: "demo-2", title: "Walk + reset", category: "Wellness", start: 11 + 35 / 60, duration: .5, date: key, color: "gold", completed: true },
-      { id: "demo-3", title: "Build the next thing", category: "Personal", start: 13.25, duration: 1 + 25 / 60, date: key, color: "blue", completed: false }
-    ]));
+      { id: "demo-3", title: "Build the next thing", category: "Personal", start: 13.25, duration: 1 + 25 / 60, date: key, color: "blue", completed: false },
+      { id: "demo-4", title: "Morning stretch", category: "Wellness", start: 7.5, duration: .5, date: key, completed: true },
+      { id: "demo-5", title: "Team check-in", category: "Work", start: 10.75, duration: .5, date: key, completed: false },
+      { id: "demo-6", title: "Lunch away from the screen", category: "Personal", start: 12.25, duration: .75, date: key, completed: false },
+      { id: "demo-7", title: "Learn something new", category: "Study", start: 15, duration: .75, date: key, completed: false },
+      { id: "demo-8", title: "Dinner + unwind", category: "Personal", start: 18, duration: 1, date: key, completed: false }
+    ];
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() + 6) % 7);
+    for (let offset = 0; offset < 14; offset++) {
+      const day = new Date(monday); day.setDate(day.getDate() + offset);
+      const date = [day.getFullYear(), day.getMonth() + 1, day.getDate()].join("-");
+      if (date === key) continue;
+      const weekend = day.getDay() === 0 || day.getDay() === 6;
+      const plan = weekend
+        ? [["Slow morning + coffee", "Personal", 8.5, 1], ["A walk outdoors", "Wellness", 10, 1], ["Creative time", "Personal", 13, 1.5], ["Read a chapter", "Study", 16, .5]]
+        : [["Morning stretch", "Wellness", 7.5, .5], ["Focused project time", "Work", 9, 1.5], ["Lunch + reset", "Personal", 12, 1], ["Project follow-up", "Work", 13.5, 1], ["Learning hour", "Study", 15, .75], ["Evening walk", "Wellness", 17.5, .5]];
+      plan.forEach(([title, category, start, duration], index) => samples.push({ id: `demo-week-${offset}-${index}`, title, category, start, duration, date, completed: day < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && index !== 3 }));
+    }
+    localStorage.setItem("blockday-blocks", JSON.stringify(samples));
+    localStorage.setItem("blockday-demo-seed-version", "2");
     localStorage.setItem("blockday-profile", JSON.stringify({ name: "Jamie", title: "Jamie’s Blockday", theme: "sage" }));
     localStorage.setItem("blockday-ideas", JSON.stringify([{ id: "demo-note-1", text: "A little idea for the weekend: take the camera out, find a new walking route, and make time for something creative.", created: new Date().toISOString() }]));
     localStorage.setItem("blockday-calendar-hours", JSON.stringify({ start: 7, end: 18 }));
