@@ -66,6 +66,12 @@ const base = process.env.BLOCKDAY_TEST_BASE || 'http://localhost:8765';
           const colors=await page.evaluate(()=>({bg:getComputedStyle(document.body).backgroundColor,card:getComputedStyle(document.querySelector('.bd-card')).backgroundColor,logo:getComputedStyle(document.querySelector('.bd-logo'),'::after').backgroundColor,logoBg:getComputedStyle(document.querySelector('.bd-logo')).backgroundColor}));
           assert.notEqual(colors.bg,colors.card,'background and cards have distinct colors');
           assert.notEqual(colors.logo,colors.logoBg,'logo lettering contrasts with tile');
+          if(mode==='dark') {
+            assert.equal(colors.logo,'rgb(255, 255, 255)','b-d lettering is bright white in dark mode');
+            const rgb=colors.logoBg.match(/\d+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});
+            const luminance=rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;
+            assert(1.05/(luminance+.05)>=4.5,'b-d lettering has strong dark-mode contrast');
+          }
           surfaces.push(colors.bg);
           await page.screenshot({path:path.join(process.env.TEMP,`blockday-theme-${name}-${mode}-${palette}.png`)});
         }
