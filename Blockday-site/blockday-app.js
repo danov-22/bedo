@@ -23,14 +23,55 @@
   const tint = cat => ['mint','lavender','peach','blue'][Math.max(0,categories.indexOf(cat))%4];
   const visible = day => blocks.filter(b => b.date === dateKey(day) && (filter==='All' || category(b)===filter));
   function save() { write('blockday-blocks',blocks); write('blockday-ideas',ideas); }
+  function normalizeColor(value) {
+    const raw=String(value||'').trim().replace(/^#/,'');
+    if (/^[0-9a-f]{3}$/i.test(raw)) return '#'+raw.split('').map(c=>c+c).join('').toLowerCase();
+    return /^[0-9a-f]{6}$/i.test(raw)?'#'+raw.toLowerCase():null;
+  }
+  const colorRGB = hex => [1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
+  function mixColor(color,target,amount) {
+    const a=colorRGB(color),b=colorRGB(target);
+    return '#'+a.map((v,i)=>Math.round(v*(1-amount)+b[i]*amount).toString(16).padStart(2,'0')).join('');
+  }
+  function luminance(hex) {
+    const rgb=colorRGB(hex).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});
+    return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;
+  }
+  function contrastColor(base,against,target) {
+    const other=luminance(against);
+    for(let amount=0;amount<=100;amount++) {
+      const color=mixColor(base,target,amount/100),light=luminance(color);
+      if ((Math.max(light,other)+.05)/(Math.min(light,other)+.05)>=4.5) return color;
+    }
+    return target;
+  }
   function setTheme() {
     if (profile.theme === 'sand') { profile = {...profile, theme:'neutral'}; write('blockday-profile',profile); }
     document.documentElement.dataset.mode = read('blockday-theme','light');
     document.documentElement.dataset.palette = profile.theme || 'sage';
+    const tokens=['bg','card','text','muted','line','soft','primary','logo-bg','logo-ink','shadow'];
+    tokens.forEach(key=>document.documentElement.style.removeProperty('--'+key));
+    if(profile.theme==='custom') {
+      const base=normalizeColor(profile.customColor)||'#7c5ce7',dark=read('blockday-theme','light')==='dark';
+      const bg=mixColor(base,dark?'#111318':'#f5f5f8',dark?.91:.95);
+      const values=dark?{
+        bg,card:mixColor(base,'#1d2028',.88),text:mixColor(base,'#ffffff',.96),muted:mixColor(base,'#bdc3d0',.90),line:mixColor(base,'#373c49',.84),soft:mixColor(base,'#292e3a',.80),primary:contrastColor(base,bg,'#ffffff')
+      }:{
+        bg,card:mixColor(base,'#ffffff',.99),text:mixColor(base,'#20232b',.91),muted:mixColor(base,'#636978',.90),line:mixColor(base,'#e5e7ed',.90),soft:mixColor(base,'#ffffff',.86),primary:contrastColor(base,bg,'#000000')
+      };
+      values['logo-bg']=contrastColor(base,'#ffffff','#000000');values['logo-ink']='#ffffff';
+      values.shadow=dark?'0 16px 50px #0003':`0 16px 50px ${base}15`;
+      Object.entries(values).forEach(([key,value])=>document.documentElement.style.setProperty('--'+key,value));
+    }
   }
   function dayCompleted(day) {
     const all = blocks.filter(b => b.date === dateKey(day));
     return all.length > 0 && all.every(b => b.completed === true);
+  }
+  function dayStatus(day) {
+    if(!blocks.some(b=>b.date===dateKey(day)))return '';
+    const completed=dayCompleted(day),label=completed?'All blocks completed. Nice work!':'Blocks still to finish. One step at a time.';
+    return `<span class="bd-day-celebration bd-day-status ${completed?'bd-day-completed':'bd-day-incomplete'}" role="img" aria-label="${label}" title="${label}">${completed?'🎯':'🎗️'}</span>`;
   }
   function nav() { return ['calendar','brainstorm','insights','settings'].map(p => `<button data-page="${p}" class="${page===p?'active':''}"><span aria-hidden="true">${icons[p]}</span>${p==='calendar'?'Timeblock':p[0].toUpperCase()+p.slice(1)}</button>`).join(''); }
   function render() {
@@ -56,7 +97,7 @@
     let html='<div class="bd-month">'+['MON','TUE','WED','THU','FRI','SAT','SUN'].map(d=>`<div class="bd-month-head">${d}</div>`).join('');
     for(let i=0;i<42;i++) {
       const d=new Date(start);d.setDate(start.getDate()+i);const list=visible(d),complete=dayCompleted(d);
-      html+=`<button class="bd-month-day ${d.getMonth()!==month.getMonth()?'muted':''} ${dateKey(d)===dateKey(new Date())?'today':''}" data-date="${dateKey(d)}" aria-label="${esc(dateLabel(d,{dateStyle:'full'}))}, ${list.length} blocks${complete?', All blocks completed. Nice work!':''}"><span>${d.getDate()}</span>${complete?'<i class="bd-day-celebration" role="img" aria-label="All blocks completed. Nice work!" title="All done. A little win worth celebrating!">😊</i>':''}<div class="bd-day-dots">${list.slice(0,3).map(b=>`<i class="${tint(category(b))}"></i>`).join('')}</div><div class="bd-month-events">${list.slice(0,2).map(b=>`<small class="${tint(category(b))}">${esc(b.title)}</small>`).join('')}${list.length>2?`<em>+${list.length-2} more</em>`:''}</div></button>`;
+      html+=`<button class="bd-month-day ${d.getMonth()!==month.getMonth()?'muted':''} ${dateKey(d)===dateKey(new Date())?'today':''}" data-date="${dateKey(d)}" aria-label="${esc(dateLabel(d,{dateStyle:'full'}))}, ${list.length} blocks${complete?', All blocks completed. Nice work!':''}"><span>${d.getDate()}</span>${dayStatus(d)}<div class="bd-day-dots">${list.slice(0,3).map(b=>`<i class="${tint(category(b))}"></i>`).join('')}</div><div class="bd-month-events">${list.slice(0,2).map(b=>`<small class="${tint(category(b))}">${esc(b.title)}</small>`).join('')}${list.length>2?`<em>+${list.length-2} more</em>`:''}</div></button>`;
     }
     return html+'</div>';
   }
@@ -82,14 +123,15 @@
       ['See one part of life at a time', 'Use the category chips above the calendar to filter your blocks. Add your own comma-separated categories in Settings. “All” brings everything back; filtering never deletes a block.'],
       ['Turn a thought into a plan', 'In Brainstorm, choose “Add to schedule” on a note. It pre-fills a new block without removing the original note. The floating pencil captures notes from any page—drag it to a comfortable spot.'],
       ['Notice your weekly motion', 'Insights follows the week containing your selected calendar day. Its completed time counts finished blocks, not just planned hours. Check off blocks to see your progress build.'],
-      ['Celebrate a little win', 'When every block on a day is checked off, a 😊 appears on that date in the calendar. It counts every category, even while you are viewing just one. Unchecking a block removes the celebration.'],
+      ['Celebrate a little win', 'Days with blocks show 🎗️ while anything is unfinished, and 🎯 when every block is checked off. It counts every category, even while you are viewing just one. Empty days do not get a marker.'],
+      ['Choose colors of your own', 'In Settings, enter a custom hex color (such as #7C5CE7), or use the color picker, then choose “Use custom color”. Backgrounds follow your color in both light and dark mode. Pick a preset to switch back.'],
       ['Share a view, not your workspace', 'After signing in, “Share schedule” publishes a read-only snapshot. Your private Brainstorm notes stay private. Later edits do not update that snapshot; publish again to share a newer view, or disable its link.']
     ];
     return '<section class="bd-card bd-guide" id="bd-app-guide"><h2>How to use app</h2><p>A few little things that make this space more useful. Open a tip to explore.</p>'+tips.map(([title,body])=>`<details><summary>${esc(title)}</summary><p>${esc(body)}</p></details>`).join('')+'</section>';
   }
   function settings() {
     const palettes = {sage:'Green',ocean:'Blue',berry:'Red',neutral:'White neutral'};
-    return `<section class="bd-heading"><div><span class="bd-kicker">MAKE YOURSELF AT HOME 🏡</span><h1>Your Blockday.</h1><p>A personal space, in your colors.</p></div></section><form id="bd-settings" class="bd-card"><label>Display name<input name="name" maxlength="40" value="${esc(profile.name||'')}"></label><h2>A color that feels like you</h2><div class="bd-palettes">${Object.entries(palettes).map(([c,label])=>`<button type="button" data-palette="${c}" class="${c} ${(profile.theme||'sage')===c?'active':''}" aria-label="${label} theme" title="${label}"></button>`).join('')}</div><label>Categories <small>Separate with commas. Existing blocks keep their category.</small><input name="categories" value="${esc(categories.join(', '))}" maxlength="200"></label><button class="bd-primary">Save preferences</button></form><section class="bd-card" id="bd-account-card"><h2>Your account</h2><p>${demo?'You’re exploring a disposable demo. No cloud data is changed.':esc(window.BlockdayAuth?.currentUser()?.email||'Continue with Google for your personal workspace.')}</p>${demo?'<button class="bd-secondary" data-action="exit">Exit demo</button>':'<a class="bd-secondary" href="/login">Sign in with Google</a><button class="bd-secondary" data-action="switch">Switch account</button><button class="bd-secondary" data-action="signout">Sign out</button>'}</section>${appGuide()}${!demo?'<section class="bd-card"><h2>Private until you share</h2><p>Publish a read-only snapshot. Anyone with the link can see it; disable it whenever you like.</p><button class="bd-secondary" data-action="share">Share schedule</button></section>':''}`;
+    return `<section class="bd-heading"><div><span class="bd-kicker">MAKE YOURSELF AT HOME 🏡</span><h1>Your Blockday.</h1><p>A personal space, in your colors.</p></div></section><form id="bd-settings" class="bd-card"><label>Display name<input name="name" maxlength="40" value="${esc(profile.name||'')}"></label><h2>A color that feels like you</h2><div class="bd-palettes">${Object.entries(palettes).map(([c,label])=>`<button type="button" data-palette="${c}" class="${c} ${(profile.theme||'sage')===c?'active':''}" aria-label="${label} theme" title="${label}"></button>`).join('')}</div><div class="bd-custom-theme"><label for="bd-custom-hex">Custom color <small>Your color, throughout the whole app.</small></label><div class="bd-custom-color-row"><input id="bd-custom-color" type="color" aria-label="Pick custom theme color" value="${normalizeColor(profile.customColor)||'#7c5ce7'}"><input id="bd-custom-hex" name="customColor" type="text" maxlength="7" spellcheck="false" autocapitalize="off" pattern="#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})" value="${normalizeColor(profile.customColor)||'#7c5ce7'}" aria-describedby="bd-custom-status" placeholder="#7c5ce7"></div><button type="button" class="bd-secondary" data-action="custom-color" aria-pressed="${profile.theme==='custom'}">Use custom color</button><p id="bd-custom-status" role="status">Hex code or color picker. Works in light and dark mode.</p></div><label>Categories <small>Separate with commas. Existing blocks keep their category.</small><input name="categories" value="${esc(categories.join(', '))}" maxlength="200"></label><button class="bd-primary">Save preferences</button></form><section class="bd-card" id="bd-account-card"><h2>Your account</h2><p>${demo?'You’re exploring a disposable demo. No cloud data is changed.':esc(window.BlockdayAuth?.currentUser()?.email||'Continue with Google for your personal workspace.')}</p>${demo?'<button class="bd-secondary" data-action="exit">Exit demo</button>':'<a class="bd-secondary" href="/login">Sign in with Google</a><button class="bd-secondary" data-action="switch">Switch account</button><button class="bd-secondary" data-action="signout">Sign out</button>'}</section>${appGuide()}${!demo?'<section class="bd-card"><h2>Private until you share</h2><p>Publish a read-only snapshot. Anyone with the link can see it; disable it whenever you like.</p><button class="bd-secondary" data-action="share">Share schedule</button></section>':''}`;
   }
   function shareDialog() {
     const share=read('blockday-share',{});
@@ -127,7 +169,7 @@
       }
       selected=d;view='day';page='calendar';
     } else if(form.id==='bd-note-form') { const text=values.get('text').trim();if(!text)return;const id=form.dataset.id;if(id)ideas=ideas.map(n=>n.id===id?{...n,text}:n);else ideas.unshift({id:uid(),text,created:new Date().toISOString()}); }
-    else { profile={...profile,name:values.get('name').trim(),categories:[...new Set(values.get('categories').split(',').map(c=>c.trim()).filter(Boolean))].slice(0,12)};categories=profile.categories.length?profile.categories:['Personal','Work'];profile.categories=categories;write('blockday-profile',profile); }
+    else { if(profile.theme==='custom'){const color=normalizeColor(values.get('customColor'));if(!color)return;profile={...profile,customColor:color};} profile={...profile,name:values.get('name').trim(),categories:[...new Set(values.get('categories').split(',').map(c=>c.trim()).filter(Boolean))].slice(0,12)};categories=profile.categories.length?profile.categories:['Personal','Work'];profile.categories=categories;write('blockday-profile',profile); }
     save();document.getElementById('bd-dialog')?.remove();render();
   });
   document.addEventListener('click',event=>{
@@ -143,8 +185,15 @@
     if(b.dataset.scheduleNote){const n=ideas.find(n=>n.id===b.dataset.scheduleNote);blockDialog(null,n?.text.slice(0,120));}
     if(b.dataset.editNote)noteDialog(b.dataset.editNote);
     if(b.dataset.deleteNote&&confirm('Delete this note?')){ideas=ideas.filter(n=>n.id!==b.dataset.deleteNote);save();render();}
-    if(b.dataset.palette){profile={...profile,theme:b.dataset.palette};write('blockday-profile',profile);setTheme();document.querySelectorAll('[data-palette]').forEach(p=>p.classList.toggle('active',p===b));}
+    if(b.dataset.palette){profile={...profile,theme:b.dataset.palette};write('blockday-profile',profile);setTheme();document.querySelectorAll('.bd-palettes [data-palette]').forEach(p=>p.classList.toggle('active',p===b));document.querySelector('[data-action="custom-color"]')?.setAttribute('aria-pressed','false');const field=document.getElementById('bd-custom-hex');if(field&&!normalizeColor(field.value)){field.value=normalizeColor(profile.customColor)||'#7c5ce7';field.removeAttribute('aria-invalid');}}
     const action=b.dataset.action;
+    if(action==='custom-color'){
+      const field=document.getElementById('bd-custom-hex'),color=normalizeColor(field.value),status=document.getElementById('bd-custom-status');
+      if(!color){status.textContent='Enter a valid hex color, like #7C5CE7.';field.setAttribute('aria-invalid','true');field.focus();return;}
+      field.value=color;field.removeAttribute('aria-invalid');document.getElementById('bd-custom-color').value=color;
+      profile={...profile,theme:'custom',customColor:color};write('blockday-profile',profile);setTheme();
+      document.querySelectorAll('.bd-palettes [data-palette]').forEach(p=>p.classList.remove('active'));b.setAttribute('aria-pressed','true');status.textContent='Your custom color is applied and saved.';
+    }
     if(action==='add')blockDialog();if(action==='note')noteDialog();if(action==='close')document.getElementById('bd-dialog')?.remove();
     if(action==='exit')window.BlockdayDemo?.exit();if(action==='switch')window.BlockdayAuth?.switchAccount();if(action==='signout')window.BlockdayAuth?.signOut();
     if(action==='share')shareDialog();if(action==='publish')publishShare();if(action==='unpublish')publishShare(true);
@@ -153,6 +202,12 @@
     if(action==='prev'||action==='next'){const delta=action==='prev'?-1:1;if(view==='month')month=new Date(month.getFullYear(),month.getMonth()+delta,1);else selected.setDate(selected.getDate()+delta*(view==='week'?7:1));render();}
   });
   document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('bd-dialog')?.remove();});
+  document.addEventListener('input',event=>{
+    if(!['bd-custom-color','bd-custom-hex'].includes(event.target.id))return;
+    const field=document.getElementById('bd-custom-hex'),picker=document.getElementById('bd-custom-color');
+    if(event.target===picker)field.value=picker.value;else {const color=normalizeColor(field.value);if(color)picker.value=color;}
+    field.removeAttribute('aria-invalid');document.getElementById('bd-custom-status').textContent='Choose “Use custom color” to apply and save.';
+  });
   document.addEventListener('pointerdown',event=>{
     const handle=event.target.closest('[data-drag]');if(!handle||event.button!==0)return;
     const block=blocks.find(b=>b.id===handle.dataset.drag),element=handle.closest('.bd-block'),track=element.parentElement;
