@@ -7,8 +7,9 @@ const base = process.env.BLOCKDAY_TEST_BASE || 'http://localhost:8765';
   const browser = await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
   try {
     for (const [name,width,height] of [['mobile',390,844],['tablet',820,1180],['desktop',1440,1000]]) {
-      const context=await browser.newContext({viewport:{width,height},hasTouch:name!=='desktop'});
+      const context=await browser.newContext({viewport:{width,height},hasTouch:name!=='desktop',timezoneId:name==='desktop'?'America/Los_Angeles':'Asia/Makassar'});
       const page=await context.newPage(),errors=[];
+      await page.clock.install({time:new Date('2026-12-31T12:00:00Z')});
       page.on('pageerror',e=>errors.push(e.message));
       await page.goto(base+'/',{waitUntil:'domcontentloaded'});
       await page.locator('.bd-hero').waitFor();
@@ -19,6 +20,7 @@ const base = process.env.BLOCKDAY_TEST_BASE || 'http://localhost:8765';
       await page.waitForURL('**/?demo=1');
       await page.locator('.bd-month').waitFor();
       assert.equal(await page.locator('.bd-segments [data-view=month]').getAttribute('class'),'active');
+      assert(await page.locator('.bd-day-celebration').count()>0,'demo includes completed-day examples');
       await page.locator('.bd-month-day.today').click();
       await page.locator('.bd-block').first().waitFor();
       assert.equal(await page.locator('.bd-block').count(),8);
@@ -57,20 +59,25 @@ const base = process.env.BLOCKDAY_TEST_BASE || 'http://localhost:8765';
       await page.locator('[data-action=close]').click();
       await page.locator('[data-page=insights]:visible').click();await page.locator('.bd-bars').waitFor();
       await page.locator('[data-page=settings]:visible').click();await page.locator('[data-palette=berry]').click();
+      assert.equal(await page.locator('#bd-account-card + #bd-app-guide').count(),1,'guide sits immediately under account');
+      assert.equal(await page.locator('#bd-app-guide details').count(),8);
+      await page.locator('#bd-app-guide summary').first().click();
+      assert.equal(await page.locator('#bd-app-guide details').first().getAttribute('open'),'');
       await page.waitForTimeout(1200);assert.equal(await page.evaluate(()=>document.documentElement.dataset.palette),'berry');
       const surfaces=[];
       for(const mode of ['light','dark']){
         if(await page.evaluate(()=>document.documentElement.dataset.mode)!==mode) await page.locator('[data-action=theme]').click();
-        for(const palette of ['sage','ocean','berry','sand']){
+        for(const palette of ['sage','ocean','berry','neutral']){
           await page.locator(`[data-palette=${palette}]`).click();
           const colors=await page.evaluate(()=>({bg:getComputedStyle(document.body).backgroundColor,card:getComputedStyle(document.querySelector('.bd-card')).backgroundColor,logo:getComputedStyle(document.querySelector('.bd-logo'),'::after').backgroundColor,logoBg:getComputedStyle(document.querySelector('.bd-logo')).backgroundColor}));
           assert.notEqual(colors.bg,colors.card,'background and cards have distinct colors');
           assert.notEqual(colors.logo,colors.logoBg,'logo lettering contrasts with tile');
           if(mode==='dark') {
-            assert.equal(colors.logo,'rgb(255, 255, 255)','b-d lettering is bright white in dark mode');
+            assert.equal(colors.logo,'rgb(255, 255, 255)','dark-mode face is bright white');
+            assert((await page.evaluate(()=>getComputedStyle(document.querySelector('.bd-logo'),'::after').maskImage)).includes('logo-dark-glyph.svg'),'dark logo shows ^-^');
             const rgb=colors.logoBg.match(/\d+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});
             const luminance=rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;
-            assert(1.05/(luminance+.05)>=4.5,'b-d lettering has strong dark-mode contrast');
+            assert(1.05/(luminance+.05)>=4.5,'dark-mode face has strong contrast');
           }
           surfaces.push(colors.bg);
           await page.screenshot({path:path.join(process.env.TEMP,`blockday-theme-${name}-${mode}-${palette}.png`)});
@@ -78,8 +85,9 @@ const base = process.env.BLOCKDAY_TEST_BASE || 'http://localhost:8765';
       }
       assert.equal(new Set(surfaces).size,8,'all palettes have distinct light/dark backgrounds');
       assert((await (await page.request.get(base+'/logo-glyph.svg')).text()).includes('>b-d<'),'new logo glyph served');
+      assert((await (await page.request.get(base+'/logo-dark-glyph.svg')).text()).includes('>^-^<'),'dark face asset served');
       await page.reload({waitUntil:'domcontentloaded'});
-      assert.equal(await page.evaluate(()=>document.documentElement.dataset.palette),'sand','palette survives reload');
+      assert.equal(await page.evaluate(()=>document.documentElement.dataset.palette),'neutral','palette survives reload');
       assert.equal(await page.evaluate(()=>document.documentElement.dataset.mode),'dark','dark mode survives reload');
       await page.locator('[data-page=settings]:visible').click();
       const fab=await page.locator('#bd-fab').boundingBox();await page.mouse.move(fab.x+20,fab.y+20);await page.mouse.down();await page.mouse.move(fab.x-80,fab.y-80,{steps:6});await page.mouse.up();
@@ -87,11 +95,60 @@ const base = process.env.BLOCKDAY_TEST_BASE || 'http://localhost:8765';
       assert(await page.evaluate(()=>Boolean(localStorage.getItem('blockday-quick-note-position'))),'FAB position saved');
       await page.locator('#bd-fab').click();await page.locator('#bd-note-form').waitFor();await page.locator('[data-action=close]').click();
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'app fits viewport');
+      await page.evaluate(()=>{
+        const data=JSON.parse(localStorage.getItem('blockday-blocks')),today=localStorage.getItem('blockday-demo-anchor-date');
+        data.forEach(b=>{if(b.date===today)b.completed=true;});localStorage.setItem('blockday-blocks',JSON.stringify(data));
+      });
+      await page.reload({waitUntil:'domcontentloaded'});
+      assert.equal(await page.locator('.bd-month-day.today .bd-day-celebration').count(),1,'all completed shows celebration');
+      await page.locator('.bd-month-day.today').click();
+      await page.locator('[data-complete="demo-5"]').click();
+      await page.locator('.bd-segments [data-view=month]').click();
+      await page.locator('[data-filter=Wellness]').click();
+      assert.equal(await page.locator('.bd-month-day.today .bd-day-celebration').count(),0,'hidden incomplete Work block prevents celebration');
+      const rollingBefore=await page.evaluate(()=>JSON.parse(localStorage.getItem('blockday-blocks')));
+      await page.clock.setSystemTime(new Date(await page.evaluate(()=>Date.now()+86400000)));
+      await page.clock.runFor(1100);
+      const rollingAfter=await page.evaluate(()=>JSON.parse(localStorage.getItem('blockday-blocks')));
+      assert.deepEqual(rollingAfter,rollingBefore.map(b=>{const [y,m,d]=b.date.split('-').map(Number),day=new Date(y,m-1,d+1,12);return {...b,date:`${day.getFullYear()}-${day.getMonth()+1}-${day.getDate()}`};}),'open demo rolls across midnight/year and retains edits');
+      await page.clock.setSystemTime(new Date(await page.evaluate(()=>Date.now()+35*86400000)));
+      await page.reload({waitUntil:'domcontentloaded'});
+      const returning=await page.evaluate(()=>JSON.parse(localStorage.getItem('blockday-blocks')));
+      assert.deepEqual(returning,rollingAfter.map(b=>{const [y,m,d]=b.date.split('-').map(Number),day=new Date(y,m-1,d+35,12);return {...b,date:`${day.getFullYear()}-${day.getMonth()+1}-${day.getDate()}`};}),'returning demo rolls across months without losing blocks');
       await page.locator('.bd-exit').click();await page.waitForURL(base+'/');
       assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('blockday-blocks'))[0].id),'real-private','demo exit restores original data');
       assert.deepEqual(errors,[],`no page errors at ${name} width`);
-      console.log(`PASS ${name}: landing, demo, calendar/day/week, drag isolation, repeat, filters, notes, insights, theme, demo restore`);
+      console.log(`PASS ${name}: calendar, drag, notes, insights, neutral theme, dark logo, guide, celebrations, rolling dates, demo restore`);
       await context.close();
     }
+    const actual=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Pacific/Auckland'});
+    await actual.route('https://script.google.com/**',route=>route.abort());
+    const page=await actual.newPage();
+    await page.clock.install({time:new Date('2026-11-30T08:00:00Z')});
+    await page.goto(base+'/',{waitUntil:'domcontentloaded'});
+    await page.evaluate(()=>{
+      const now=new Date(),date=`${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`;
+      localStorage.setItem('blockday-auth-user',JSON.stringify({sub:'local-ui-test-only',email:'test@example.test'}));
+      localStorage.setItem('blockday-appscript','false');
+      localStorage.setItem('blockday-profile',JSON.stringify({name:'Private test',theme:'sand'}));
+      localStorage.setItem('blockday-theme',JSON.stringify('dark'));
+      localStorage.setItem('blockday-blocks',JSON.stringify([{id:'private-work',title:'Work block',category:'Work',date,start:9,duration:1,completed:true},{id:'private-personal',title:'Personal block',category:'Personal',date,start:12,duration:1,completed:false}]));
+    });
+    await page.goto(base+'/?app=1',{waitUntil:'domcontentloaded'});
+    assert.equal(await page.evaluate(()=>document.documentElement.dataset.palette),'neutral','previous gold preference migrates to neutral');
+    assert.equal(await page.locator('.bd-month-day.today .bd-day-celebration').count(),0);
+    await page.locator('.bd-month-day.today').click();
+    await page.locator('[data-complete=private-personal]').click();
+    await page.locator('.bd-segments [data-view=month]').click();
+    assert.equal(await page.locator('.bd-month-day.today .bd-day-celebration').count(),1,'completion celebration works outside demo');
+    const privateBefore=await page.evaluate(()=>localStorage.getItem('blockday-blocks'));
+    await page.clock.setSystemTime(new Date(await page.evaluate(()=>Date.now()+86400000)));
+    await page.clock.runFor(1100);
+    assert.equal(await page.evaluate(()=>localStorage.getItem('blockday-blocks')),privateBefore,'real schedules never roll like demo data');
+    await page.locator('[data-page=settings]:visible').click();
+    assert.equal(await page.locator('#bd-account-card + #bd-app-guide').count(),1,'guide also appears in actual app');
+    assert.equal(await page.locator('.bd-palettes [data-palette=neutral]').count(),1);
+    console.log('PASS actual app: neutral migration, completion celebration, guide, and private dates unchanged');
+    await actual.close();
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

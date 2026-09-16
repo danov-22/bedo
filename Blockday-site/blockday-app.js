@@ -23,7 +23,15 @@
   const tint = cat => ['mint','lavender','peach','blue'][Math.max(0,categories.indexOf(cat))%4];
   const visible = day => blocks.filter(b => b.date === dateKey(day) && (filter==='All' || category(b)===filter));
   function save() { write('blockday-blocks',blocks); write('blockday-ideas',ideas); }
-  function setTheme() { document.documentElement.dataset.mode = read('blockday-theme','light'); document.documentElement.dataset.palette = profile.theme || 'sage'; }
+  function setTheme() {
+    if (profile.theme === 'sand') { profile = {...profile, theme:'neutral'}; write('blockday-profile',profile); }
+    document.documentElement.dataset.mode = read('blockday-theme','light');
+    document.documentElement.dataset.palette = profile.theme || 'sage';
+  }
+  function dayCompleted(day) {
+    const all = blocks.filter(b => b.date === dateKey(day));
+    return all.length > 0 && all.every(b => b.completed === true);
+  }
   function nav() { return ['calendar','brainstorm','insights','settings'].map(p => `<button data-page="${p}" class="${page===p?'active':''}"><span aria-hidden="true">${icons[p]}</span>${p==='calendar'?'Timeblock':p[0].toUpperCase()+p.slice(1)}</button>`).join(''); }
   function render() {
     const scrollPositions = new Map(Array.from(document.querySelectorAll('.bd-day-track')).map(track=>[track.dataset.trackDate,track.parentElement.scrollTop]));
@@ -46,7 +54,10 @@
     const first=new Date(month.getFullYear(),month.getMonth(),1), offset=(first.getDay()+6)%7;
     const start=new Date(first); start.setDate(1-offset);
     let html='<div class="bd-month">'+['MON','TUE','WED','THU','FRI','SAT','SUN'].map(d=>`<div class="bd-month-head">${d}</div>`).join('');
-    for(let i=0;i<42;i++) { const d=new Date(start);d.setDate(start.getDate()+i);const list=visible(d); html+=`<button class="bd-month-day ${d.getMonth()!==month.getMonth()?'muted':''} ${dateKey(d)===dateKey(new Date())?'today':''}" data-date="${dateKey(d)}" aria-label="${esc(dateLabel(d,{dateStyle:'full'}))}, ${list.length} blocks"><span>${d.getDate()}</span><div class="bd-day-dots">${list.slice(0,3).map(b=>`<i class="${tint(category(b))}"></i>`).join('')}</div><div class="bd-month-events">${list.slice(0,2).map(b=>`<small class="${tint(category(b))}">${esc(b.title)}</small>`).join('')}${list.length>2?`<em>+${list.length-2} more</em>`:''}</div></button>`; }
+    for(let i=0;i<42;i++) {
+      const d=new Date(start);d.setDate(start.getDate()+i);const list=visible(d),complete=dayCompleted(d);
+      html+=`<button class="bd-month-day ${d.getMonth()!==month.getMonth()?'muted':''} ${dateKey(d)===dateKey(new Date())?'today':''}" data-date="${dateKey(d)}" aria-label="${esc(dateLabel(d,{dateStyle:'full'}))}, ${list.length} blocks${complete?', All blocks completed. Nice work!':''}"><span>${d.getDate()}</span>${complete?'<i class="bd-day-celebration" role="img" aria-label="All blocks completed. Nice work!" title="All done. A little win worth celebrating!">😊</i>':''}<div class="bd-day-dots">${list.slice(0,3).map(b=>`<i class="${tint(category(b))}"></i>`).join('')}</div><div class="bd-month-events">${list.slice(0,2).map(b=>`<small class="${tint(category(b))}">${esc(b.title)}</small>`).join('')}${list.length>2?`<em>+${list.length-2} more</em>`:''}</div></button>`;
+    }
     return html+'</div>';
   }
   function monday() { const d=new Date(selected);d.setDate(d.getDate()-(d.getDay()+6)%7);return d; }
@@ -63,7 +74,23 @@
     const week=blocks.filter(b=>days.some(d=>b.date===dateKey(d))),done=week.filter(b=>b.completed),hours=done.reduce((sum,b)=>sum+Number(b.duration||0),0);
     return `<section class="bd-heading"><div><span class="bd-kicker">PROGRESS, NOT PRESSURE 🌻</span><h1>Your week, in motion.</h1><p>${dateLabel(start,{month:'short',day:'numeric'})} – ${dateLabel(days[6],{month:'short',day:'numeric'})}. Small steps add up.</p></div></section><div class="bd-stats"><article><span>Completed blocks</span><strong>${done.length}<small> / ${week.length}</small></strong></article><article><span>Weekly completion</span><strong>${week.length?Math.round(done.length/week.length*100):0}%</strong></article><article><span>Completed time</span><strong>${Math.round(hours*100)/100}<small>h</small></strong></article></div><section class="bd-card"><h2>Weekly motion</h2><p>Completed blocks across your week.</p><div class="bd-bars">${days.map(d=>{const all=blocks.filter(b=>b.date===dateKey(d)),complete=all.filter(b=>b.completed).length;return `<div><small>${complete}/${all.length}</small><div class="bd-bar" style="height:${all.length?Math.max(5,complete/all.length*140):5}px"></div><span>${dateLabel(d,{weekday:'short'})}</span></div>`;}).join('')}</div></section><section class="bd-card"><h2>Space for different parts of life</h2>${categories.map(c=>`<div class="bd-category-stat"><span><i class="${tint(c)}"></i>${esc(c)}</span><strong>${week.filter(b=>category(b)===c&&b.completed).length} completed</strong></div>`).join('')}</section>`;
   }
-  function settings() { return `<section class="bd-heading"><div><span class="bd-kicker">MAKE YOURSELF AT HOME 🏡</span><h1>Your Blockday.</h1><p>A personal space, in your colors.</p></div></section><form id="bd-settings" class="bd-card"><label>Display name<input name="name" maxlength="40" value="${esc(profile.name||'')}"></label><h2>A color that feels like you</h2><div class="bd-palettes">${['sage','ocean','berry','sand'].map(c=>`<button type="button" data-palette="${c}" class="${c} ${profile.theme===c?'active':''}" aria-label="${c} theme"></button>`).join('')}</div><label>Categories <small>Separate with commas. Existing blocks keep their category.</small><input name="categories" value="${esc(categories.join(', '))}" maxlength="200"></label><button class="bd-primary">Save preferences</button></form><section class="bd-card"><h2>Your account</h2><p>${demo?'You’re exploring a disposable demo. No cloud data is changed.':esc(window.BlockdayAuth?.currentUser()?.email||'Continue with Google for your personal workspace.')}</p>${demo?'<button class="bd-secondary" data-action="exit">Exit demo</button>':'<a class="bd-secondary" href="/login">Sign in with Google</a><button class="bd-secondary" data-action="switch">Switch account</button><button class="bd-secondary" data-action="signout">Sign out</button>'}</section>${!demo?'<section class="bd-card"><h2>Private until you share</h2><p>Publish a read-only snapshot. Anyone with the link can see it; disable it whenever you like.</p><button class="bd-secondary" data-action="share">Share schedule</button></section>':''}`; }
+  function appGuide() {
+    const tips = [
+      ['Move just this block', 'In Day or Week view, drag the ⋮⋮ handle to change a block’s time in 5-minute steps. You can drag near the timeline’s edge to scroll. Other dates, including repeated occurrences, stay untouched.'],
+      ['Give a block the time it needs', 'Tap the block’s title to edit its start time and Minutes. Blocks can be short or long, but must end by midnight on the chosen day.'],
+      ['Repeat without locking your week', 'When adding a new block, choose Daily, Weekdays, or Weekly in Repeat. This creates the next 4 weeks of separate occurrences; editing or deleting one does not change the others.'],
+      ['See one part of life at a time', 'Use the category chips above the calendar to filter your blocks. Add your own comma-separated categories in Settings. “All” brings everything back; filtering never deletes a block.'],
+      ['Turn a thought into a plan', 'In Brainstorm, choose “Add to schedule” on a note. It pre-fills a new block without removing the original note. The floating pencil captures notes from any page—drag it to a comfortable spot.'],
+      ['Notice your weekly motion', 'Insights follows the week containing your selected calendar day. Its completed time counts finished blocks, not just planned hours. Check off blocks to see your progress build.'],
+      ['Celebrate a little win', 'When every block on a day is checked off, a 😊 appears on that date in the calendar. It counts every category, even while you are viewing just one. Unchecking a block removes the celebration.'],
+      ['Share a view, not your workspace', 'After signing in, “Share schedule” publishes a read-only snapshot. Your private Brainstorm notes stay private. Later edits do not update that snapshot; publish again to share a newer view, or disable its link.']
+    ];
+    return '<section class="bd-card bd-guide" id="bd-app-guide"><h2>How to use app</h2><p>A few little things that make this space more useful. Open a tip to explore.</p>'+tips.map(([title,body])=>`<details><summary>${esc(title)}</summary><p>${esc(body)}</p></details>`).join('')+'</section>';
+  }
+  function settings() {
+    const palettes = {sage:'Green',ocean:'Blue',berry:'Red',neutral:'White neutral'};
+    return `<section class="bd-heading"><div><span class="bd-kicker">MAKE YOURSELF AT HOME 🏡</span><h1>Your Blockday.</h1><p>A personal space, in your colors.</p></div></section><form id="bd-settings" class="bd-card"><label>Display name<input name="name" maxlength="40" value="${esc(profile.name||'')}"></label><h2>A color that feels like you</h2><div class="bd-palettes">${Object.entries(palettes).map(([c,label])=>`<button type="button" data-palette="${c}" class="${c} ${(profile.theme||'sage')===c?'active':''}" aria-label="${label} theme" title="${label}"></button>`).join('')}</div><label>Categories <small>Separate with commas. Existing blocks keep their category.</small><input name="categories" value="${esc(categories.join(', '))}" maxlength="200"></label><button class="bd-primary">Save preferences</button></form><section class="bd-card" id="bd-account-card"><h2>Your account</h2><p>${demo?'You’re exploring a disposable demo. No cloud data is changed.':esc(window.BlockdayAuth?.currentUser()?.email||'Continue with Google for your personal workspace.')}</p>${demo?'<button class="bd-secondary" data-action="exit">Exit demo</button>':'<a class="bd-secondary" href="/login">Sign in with Google</a><button class="bd-secondary" data-action="switch">Switch account</button><button class="bd-secondary" data-action="signout">Sign out</button>'}</section>${appGuide()}${!demo?'<section class="bd-card"><h2>Private until you share</h2><p>Publish a read-only snapshot. Anyone with the link can see it; disable it whenever you like.</p><button class="bd-secondary" data-action="share">Share schedule</button></section>':''}`;
+  }
   function shareDialog() {
     const share=read('blockday-share',{});
     dialog(`<h2>Share a little view.</h2><p>A snapshot of your blocks, never your private brainstorm notes.</p><label class="bd-checkbox"><input type="checkbox" id="bd-share-notes"> Include daily notes</label><button class="bd-primary" data-action="publish">Publish snapshot</button>${share.token?'<button class="bd-secondary" data-action="unpublish">Disable current link</button>':''}<p id="bd-share-status" role="status">${share.url?`<a href="${esc(share.url)}" target="_blank" rel="noopener">Open current shared schedule ↗</a>`:'You control what gets shared.'}</p>`);
@@ -146,7 +173,18 @@
     drag=null;save();render();
   });
   document.addEventListener('pointercancel',()=>{if(drag){drag=null;render();}});
-  function tick(){const now=new Date(),clock=document.getElementById('bd-clock');if(clock)clock.textContent=now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});document.querySelectorAll('.bd-now').forEach(line=>{line.style.top=(now.getHours()+now.getMinutes()/60)*Number(line.parentElement.dataset.hourHeight)+'px';});}
+  let deviceDay = dateKey(new Date());
+  function tick(){
+    const now=new Date(),today=dateKey(now);
+    if(today!==deviceDay){
+      const previous=deviceDay;deviceDay=today;
+      if(demo && window.BlockdayDemo?.refresh()) blocks=read('blockday-blocks',[]);
+      if(dateKey(selected)===previous){selected=now;month=new Date(now);}
+      render();return;
+    }
+    const clock=document.getElementById('bd-clock');if(clock)clock.textContent=now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    document.querySelectorAll('.bd-now').forEach(line=>{line.style.top=(now.getHours()+now.getMinutes()/60)*Number(line.parentElement.dataset.hourHeight)+'px';});
+  }
   setInterval(tick,1000);
   function mountNoteButton(){
     if(document.getElementById('bd-fab'))return;

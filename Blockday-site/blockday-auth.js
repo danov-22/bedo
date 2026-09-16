@@ -40,9 +40,34 @@
     Object.keys(backup).forEach(key => localStorage.setItem(key, backup[key]));
     localStorage.removeItem(demoBackupKey);
     localStorage.removeItem("blockday-demo-seed-version");
+    localStorage.removeItem("blockday-demo-anchor-date");
+  }
+  function refreshDemo() {
+    if (!localStorage.getItem(demoBackupKey)) return false;
+    let samples; try { samples = JSON.parse(localStorage.getItem("blockday-blocks") || "[]"); } catch (_) { return false; }
+    if (!Array.isArray(samples)) return false;
+    const now = new Date(), today = [now.getFullYear(), now.getMonth() + 1, now.getDate()].join("-");
+    const anchor = localStorage.getItem("blockday-demo-anchor-date") || samples.find(b => b.id === "demo-1")?.date || today;
+    const parts = String(anchor).split("-").map(Number);
+    const delta = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(parts[0], parts[1] - 1, parts[2])) / 86400000);
+    if (Number.isFinite(delta) && delta !== 0) {
+      samples = samples.map(block => {
+        const [year, month, day] = String(block.date).split("-").map(Number), date = new Date(year, month - 1, day, 12);
+        if (!Number.isFinite(date.getTime())) return block;
+        date.setDate(date.getDate() + delta);
+        return { ...block, date: [date.getFullYear(), date.getMonth() + 1, date.getDate()].join("-") };
+      });
+      localStorage.setItem("blockday-blocks", JSON.stringify(samples));
+    }
+    localStorage.setItem("blockday-demo-anchor-date", today);
+    return Number.isFinite(delta) && delta !== 0;
   }
   function prepareDemo() {
-    if (localStorage.getItem(demoBackupKey) && localStorage.getItem("blockday-demo-seed-version") === "2") return;
+    if (localStorage.getItem(demoBackupKey) && ["2", "3"].includes(localStorage.getItem("blockday-demo-seed-version"))) {
+      refreshDemo();
+      localStorage.setItem("blockday-demo-seed-version", "3");
+      return;
+    }
     if (!localStorage.getItem(demoBackupKey)) {
       const backup = {}; demoKeys.forEach(key => { const value = localStorage.getItem(key); if (value !== null) backup[key] = value; });
       localStorage.setItem(demoBackupKey, JSON.stringify(backup));
@@ -60,7 +85,7 @@
       { id: "demo-8", title: "Dinner + unwind", category: "Personal", start: 18, duration: 1, date: key, completed: false }
     ];
     const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() + 6) % 7);
-    for (let offset = 0; offset < 14; offset++) {
+    for (let offset = -7; offset < 14; offset++) {
       const day = new Date(monday); day.setDate(day.getDate() + offset);
       const date = [day.getFullYear(), day.getMonth() + 1, day.getDate()].join("-");
       if (date === key) continue;
@@ -68,10 +93,11 @@
       const plan = weekend
         ? [["Slow morning + coffee", "Personal", 8.5, 1], ["A walk outdoors", "Wellness", 10, 1], ["Creative time", "Personal", 13, 1.5], ["Read a chapter", "Study", 16, .5]]
         : [["Morning stretch", "Wellness", 7.5, .5], ["Focused project time", "Work", 9, 1.5], ["Lunch + reset", "Personal", 12, 1], ["Project follow-up", "Work", 13.5, 1], ["Learning hour", "Study", 15, .75], ["Evening walk", "Wellness", 17.5, .5]];
-      plan.forEach(([title, category, start, duration], index) => samples.push({ id: `demo-week-${offset}-${index}`, title, category, start, duration, date, completed: day < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && index !== 3 }));
+      plan.forEach(([title, category, start, duration], index) => samples.push({ id: `demo-week-${offset}-${index}`, title, category, start, duration, date, completed: day < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && (index !== 3 || offset % 3 === 0) }));
     }
     localStorage.setItem("blockday-blocks", JSON.stringify(samples));
-    localStorage.setItem("blockday-demo-seed-version", "2");
+    localStorage.setItem("blockday-demo-seed-version", "3");
+    localStorage.setItem("blockday-demo-anchor-date", key);
     localStorage.setItem("blockday-profile", JSON.stringify({ name: "Jamie", title: "Jamie’s Blockday", theme: "sage" }));
     localStorage.setItem("blockday-ideas", JSON.stringify([{ id: "demo-note-1", text: "A little idea for the weekend: take the camera out, find a new walking route, and make time for something creative.", created: new Date().toISOString() }]));
     localStorage.setItem("blockday-calendar-hours", JSON.stringify({ start: 7, end: 18 }));
@@ -81,7 +107,7 @@
     prepareDemo();
     location.href = "/?demo=1";
   }
-  window.BlockdayDemo = { enter: enterDemo, exit: function () { restoreDemo(); location.href = "/"; } };
+  window.BlockdayDemo = { enter: enterDemo, refresh: refreshDemo, exit: function () { restoreDemo(); location.href = "/"; } };
   function loginScreen(configured) {
     if (document.getElementById("blockday-login")) return;
     const screen = document.createElement("main");
