@@ -4,7 +4,7 @@
   const credentialKey = "blockday-auth-credential";
   const userKey = "blockday-auth-user";
   const sessionKey = "blockday-auth-session";
-  const privateKeys = ["blockday-blocks", "blockday-ideas", "blockday-daily-notes", "blockday-routines", "blockday-profile", "blockday-share"];
+  const privateKeys = ["blockday-blocks", "blockday-ideas", "blockday-daily-notes", "blockday-routines", "blockday-profile", "blockday-share", "blockday-theme", "blockday-tour-state", "blockday-last-sync", "blockday-sync-pending"];
   const demoKeys = privateKeys.concat(["blockday-theme", "blockday-reminders", "blockday-locked", "blockday-calendar-hours", "blockday-appscript", "blockday-sync-pending"]);
   const demoBackupKey = "blockday-demo-backup";
   const defaultApiUrl = "https://script.google.com/macros/s/AKfycbyMPgUg0MQlPtHMNBZYAks0_x1VZ2HXb7_iX873gcpg9Vee2LjRIacJHs-ua33OATXH/exec";
@@ -29,7 +29,7 @@
     privateKeys.forEach(key => localStorage.removeItem(key));
     if (nextSub) {
       const hasSavedWorkspace = privateKeys.some(key => localStorage.getItem("blockday-user-" + nextSub + "-" + key) !== null);
-      privateKeys.forEach(key => { const value = localStorage.getItem("blockday-user-" + nextSub + "-" + key); if (value !== null) localStorage.setItem(key, value); else if (!previous?.sub && !hasSavedWorkspace && snapshot[key] !== undefined) localStorage.setItem(key, snapshot[key]); });
+      privateKeys.forEach(key => { const value = localStorage.getItem("blockday-user-" + nextSub + "-" + key); if (value !== null) localStorage.setItem(key, value); else if (!previous?.sub && !hasSavedWorkspace && snapshot[key] !== undefined && !["blockday-tour-state", "blockday-last-sync", "blockday-sync-pending"].includes(key)) localStorage.setItem(key, snapshot[key]); });
     }
   }
   function restoreDemo() {

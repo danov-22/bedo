@@ -1,24 +1,9 @@
 /**
- * Blockday Google Apps Script sync
- *
- * 1. Create a blank Google Sheet.
- * 2. Open Extensions > Apps Script.
- * 3. Replace the default file with this script.
- * 4. Deploy as a Web app:
- *      Execute as: Me
- *      Who has access: Anyone with the link
- * 5. Copy the deployment URL into Blockday > Settings > Google Sheets sync.
- *
- * The script creates these tabs automatically:
- *   Blocks, Ideas, DailyNotes, Routines, Settings
- *
- * Requests are JSON POST bodies:
- *   { action: "load", userId: "..." }
- *   { action: "save", userId: "...", data: { blocks: [], ideas: [], ... } }
- *
- * Blockday keeps a userId in the browser. For a private multi-user deployment,
- * replace the value with an authenticated Google identity from your own OAuth
- * layer before enabling public access.
+ * Blockday authenticated Google Sheets storage.
+ * See GOOGLE-LOGIN.md for setup. Configure OAUTH_CLIENT_ID and redeploy.
+ * Private POST operations validate Google credentials or a signed session.
+ * Only explicitly published schedule snapshots are publicly readable.
+ * The attached Sheet is owned by the deploying account, not each app user.
  */
 
 var SHEET_NAMES = ["Blocks", "Ideas", "DailyNotes", "Routines", "Settings", "PublicSchedules"];
@@ -34,7 +19,7 @@ function doGet(e) {
     });
   }
   if (action === "load") {
-    return jsonOutput_(loadData_(String((e.parameter && e.parameter.userId) || "default")));
+    return jsonOutput_({ ok: false, error: "Private records require an authenticated POST request." });
   }
   if (action === "public") {
     return jsonOutput_(loadPublicSchedule_(String((e.parameter && e.parameter.token) || "")));
@@ -75,7 +60,7 @@ function doPost(e) {
  */
 function resolveUserId_(body) {
   var clientId = PropertiesService.getScriptProperties().getProperty("OAUTH_CLIENT_ID");
-  if (!clientId) return String(body.userId || "default");
+  if (!clientId) throw new Error("Configure OAUTH_CLIENT_ID before using private cloud storage.");
   if (body.session) return validateSession_(String(body.session));
   var credential = String(body.credential || "");
   if (!credential) throw new Error("Sign in with Google before syncing.");
@@ -130,6 +115,9 @@ function setupSheets() {
 }
 
 function loadData_(userId) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
   var sheets = getOrCreateSheets_();
   var data = {
     ok: true,
@@ -140,10 +128,24 @@ function loadData_(userId) {
     routines: readRows_(sheets.Routines, userId),
     settings: readRows_(sheets.Settings, userId)
   };
+  var timestamps = [];
+  ["Blocks", "Ideas", "DailyNotes", "Routines", "Settings"].forEach(function(name) {
+    sheets[name].getDataRange().getValues().slice(1).forEach(function(row) { if (String(row[0]) === userId && row[3]) timestamps.push(String(row[3])); });
+  });
+  data.savedAt = timestamps.sort().pop() || null;
   return data;
+  } finally { lock.releaseLock(); }
 }
 
 function saveData_(userId, data) {
+  SHEET_NAMES.slice(0, 5).forEach(function(name) {
+    var records = data[{ Blocks: 'blocks', Ideas: 'ideas', DailyNotes: 'dailyNotes', Routines: 'routines', Settings: 'settings' }[name]] || [];
+    if (!Array.isArray(records)) throw new Error("Invalid records.");
+    records.forEach(function(record) { if (JSON.stringify(record).length > MAX_CELL_LENGTH) throw new Error("A Blockday record is too large for Google Sheets."); });
+  });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
   var sheets = getOrCreateSheets_();
   writeRows_(sheets.Blocks, userId, data.blocks || []);
   writeRows_(sheets.Ideas, userId, data.ideas || []);
@@ -151,6 +153,7 @@ function saveData_(userId, data) {
   writeRows_(sheets.Routines, userId, data.routines || []);
   writeRows_(sheets.Settings, userId, data.settings || []);
   return { ok: true, userId: userId, savedAt: new Date().toISOString() };
+  } finally { lock.releaseLock(); }
 }
 
 function publishSchedule_(userId, data) {

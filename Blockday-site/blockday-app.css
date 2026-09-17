@@ -1,5 +1,6 @@
 /* System fonts deliberately use Apple's native stack where available. */
 /* Every surface uses palette tokens; category colors remain distinguishable. */
+.bd-save-badge{font-size:9px;color:var(--muted);white-space:nowrap}.bd-tour-layer{place-items:end center;background:#0003;backdrop-filter:none}.bd-tour-layer .bd-dialog{margin-bottom:75px}.bd-tour-progress{display:flex;gap:6px;margin:22px 0}.bd-tour-progress i{height:5px;border-radius:5px;background:var(--line);flex:1}.bd-tour-progress i.active{background:var(--primary)}.bd-tour-actions{display:flex;align-items:center;gap:8px}.bd-tour-actions button{padding:10px 12px;font-size:11px}.bd-tour-actions .bd-primary{margin-left:auto}@media(max-width:420px){.bd-top-actions{gap:8px}.bd-top time{font-size:11px}.bd-tour-layer .bd-dialog{margin-bottom:65px}}
 :root{--bg:#f8faf9;--card:#fff;--text:#23352f;--muted:#7b8b84;--line:#e7eee9;--primary:#308772;--soft:#e6f4ec;--shadow:0 16px 50px #264a3510;color-scheme:light;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
 :root[data-mode=dark]{--bg:#14251f;--card:#1d3028;--text:#f0f6f1;--muted:#a4b7ac;--line:#344a3e;--soft:#2a4438;--shadow:0 16px 50px #0003;color-scheme:dark}
 :root{--logo-ink:#fff;--logo-bg:var(--primary)}

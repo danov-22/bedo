@@ -4,7 +4,7 @@
   const root = document.getElementById('root');
   const demo = new URLSearchParams(location.search).has('demo');
   const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (_) { return fallback; } };
-  const write = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+  const write = (key, value) => {localStorage.setItem(key, JSON.stringify(value));window.BlockdaySync?.changed();};
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const dateKey = d => `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
   const fromKey = key => { const [y,m,d] = key.split('-').map(Number); return new Date(y,m-1,d,12); };
@@ -79,8 +79,8 @@
   function render() {
     const scrollPositions = new Map(Array.from(document.querySelectorAll('.bd-day-track')).map(track=>[track.dataset.trackDate,track.parentElement.scrollTop]));
     setTheme();
-    root.innerHTML = `<div class="bd-shell"><aside class="bd-sidebar"><a class="bd-brand" href="/"><span class="bd-logo"></span>blockday<span class="bd-brand-dot">.</span></a><p>A little space for your day.</p><nav>${nav()}</nav><div class="bd-sidebar-note">Make room for life.<br>Not just your to-do list. ☀️</div></aside><main class="bd-main"><header class="bd-top"><a class="bd-logo" href="/" aria-label="Blockday home"></a><div class="bd-top-actions">${demo?'<button class="bd-exit" data-action="exit">← Exit demo</button>':''}<time id="bd-clock"></time><button class="bd-icon" data-action="theme" aria-label="Toggle light or dark theme">${read('blockday-theme','light')==='dark'?'☀':'☾'}</button></div></header><div class="bd-content">${page==='calendar'?calendar():page==='brainstorm'?brainstorm():page==='insights'?insights():settings()}</div></main><nav class="bd-mobile-nav">${nav()}</nav></div>`;
-    tick(); mountNoteButton();
+    root.innerHTML = `<div class="bd-shell"><aside class="bd-sidebar"><a class="bd-brand" href="/"><span class="bd-logo"></span>blockday<span class="bd-brand-dot">.</span></a><p>A little space for your day.</p><nav>${nav()}</nav><div class="bd-sidebar-note">Make room for life.<br>Not just your to-do list. ☀️</div></aside><main class="bd-main"><header class="bd-top"><a class="bd-logo" href="/" aria-label="Blockday home"></a><div class="bd-top-actions">${demo?'<button class="bd-exit" data-action="exit">← Exit demo</button>':''}<span id="bd-save-badge" class="bd-save-badge"></span><time id="bd-clock"></time><button class="bd-icon" data-action="theme" aria-label="Toggle light or dark theme">${read('blockday-theme','light')==='dark'?'☀':'☾'}</button></div></header><div class="bd-content">${page==='calendar'?calendar():page==='brainstorm'?brainstorm():page==='insights'?insights():settings()}</div></main><nav class="bd-mobile-nav">${nav()}</nav></div>`;
+    tick(); mountNoteButton(); updateSavingStatus();
     requestAnimationFrame(() => document.querySelectorAll('.bd-timeline').forEach(timeline => {
       const track=timeline.querySelector('.bd-day-track');
       const list=blocks.filter(b=>b.date===track.dataset.trackDate);
@@ -129,11 +129,46 @@
       ['Choose colors of your own', 'In Settings, enter a custom hex color (such as #7C5CE7), or use the color picker, then choose “Use custom color”. Backgrounds follow your color in both light and dark mode. Pick a preset to switch back.'],
       ['Share a view, not your workspace', 'After signing in, “Share schedule” publishes a read-only snapshot. Your private Brainstorm notes stay private. Later edits do not update that snapshot; publish again to share a newer view, or disable its link.']
     ];
-    return '<section class="bd-card bd-guide" id="bd-app-guide"><h2>How to use app</h2><p>A few little things that make this space more useful. Open a tip to explore.</p>'+tips.map(([title,body])=>`<details><summary>${esc(title)}</summary><p>${esc(body)}</p></details>`).join('')+'</section>';
+    return '<section class="bd-card bd-guide" id="bd-app-guide"><h2>How to use app</h2><button class="bd-secondary" data-action="tour">Replay app tour</button><p>A few little things that make this space more useful. Open a tip to explore.</p>'+tips.map(([title,body])=>`<details><summary>${esc(title)}</summary><p>${esc(body)}</p></details>`).join('')+'</section>';
+  }
+  function savingCard() {
+    return `<section class="bd-card" id="bd-saving-card"><h2>Your saved data</h2><p id="bd-save-status" role="status"></p><p id="bd-save-time"></p><p>Schedules and Brainstorm notes save on this device first. After Google sign-in, they back up to Blockday’s account-separated Google Sheet. This does not create a Sheet in your own Google Drive.</p><button class="bd-secondary" data-action="sync-now">Save online now</button><button class="bd-secondary" data-action="export">Download my data</button><button class="bd-secondary" data-action="recovery">Download previous device copy</button></section>`;
+  }
+  function updateSavingStatus(){
+    const status=demo?{message:'Demo changes stay on this device. No account or cloud data is changed.'}:window.BlockdaySync?.getStatus()||{message:'Saved on this device.'};
+    const label=document.getElementById('bd-save-status');if(label)label.textContent=status.message;
+    const stamp=document.getElementById('bd-save-time');if(stamp)stamp.textContent=status.lastSavedAt?'Last confirmed online save: '+new Date(status.lastSavedAt).toLocaleString(): 'No online save confirmed yet.';
+    const badge=document.getElementById('bd-save-badge');if(badge){badge.textContent=demo?'Demo':status.state==='saved'?'Saved online':status.state==='saving'?'Saving…':'On device';badge.title=status.message;}
+  }
+  addEventListener('blockday-sync-status',updateSavingStatus);
+  let tourActive=false,tourIndex=0,tourOrigin=null;
+  const tourSteps=[
+    ['calendar','month','Welcome to your Blockday','A place for your time and your thoughts. This tour shows the features that are easy to miss—nothing you do here adds or changes a block.'],
+    ['calendar','month','Start with the bigger picture','Open any date to plan that day. Category chips narrow the view without deleting anything. 🎯 marks fully completed days; 🎗️ marks unfinished past days.'],
+    ['calendar','day','Make time fit your day','Add a block using a start time and Minutes. Tap its title to edit it. You can plan in 5-minute steps rather than whole hours.'],
+    ['calendar','day','Move one moment, not your whole week','Drag the ⋮⋮ handle to move a block within its day. Other dates are untouched. Drag near the timeline’s edge to scroll.'],
+    ['calendar','week','Repeat only when you want to','New blocks can repeat daily, on weekdays, or weekly for the next 4 weeks. Each occurrence is independent. Week view helps you see how your plan fits together.'],
+    ['brainstorm',null,'Give your thoughts somewhere to land','Capture notes here or with the floating pencil on any page. Drag the pencil wherever it feels comfortable. “Add to schedule” turns a note into a block without removing the note.'],
+    ['insights',null,'See your progress, not just your plans','Check off finished blocks to build your weekly completion and motion stats. Insights follows the week containing the calendar day you selected.'],
+    ['settings',null,'Know where everything is saved','Look under “Your saved data” for a confirmed online save time. Offline edits stay on your device and retry when connected. Download a copy any time.'],
+    ['settings',null,'Make this space yours','Choose a theme or custom hex color, name your categories, and use account controls here. Replay this tour anytime from “How to use app”.']
+  ];
+  function showTour(){
+    const [nextPage,nextView,title,body]=tourSteps[tourIndex];page=nextPage;if(nextView)view=nextView;render();
+    window.scrollTo({top:0});
+    dialog(`<span class="bd-kicker">A LITTLE WALKTHROUGH · ${tourIndex+1} / ${tourSteps.length}</span><h2 id="bd-tour-title">${title}</h2><p>${body}</p><div class="bd-tour-progress" aria-hidden="true">${tourSteps.map((_,i)=>`<i class="${i===tourIndex?'active':''}"></i>`).join('')}</div><div class="bd-tour-actions"><button class="bd-secondary" data-action="tour-skip">Skip tour</button>${tourIndex?'<button class="bd-secondary" data-action="tour-back">Back</button>':''}<button class="bd-primary" data-action="tour-next">${tourIndex===tourSteps.length-1?'Finish':'Next'}</button></div>`);
+    const layer=document.getElementById('bd-dialog');layer.classList.add('bd-tour-layer');layer.querySelector('[role=dialog]').setAttribute('aria-labelledby','bd-tour-title');layer.querySelector('[data-action=tour-next]').focus();
+  }
+  function startTour(){tourOrigin={page,view};tourIndex=0;tourActive=true;showTour();}
+  function endTour(skipped=false){tourActive=false;write('blockday-tour-state',{version:1,completed:true,skipped});document.getElementById('bd-dialog')?.remove();if(tourOrigin){page=tourOrigin.page;view=tourOrigin.view;}render();}
+  function downloadData(recovery=false){
+    const account=window.BlockdayAuth?.currentUser(),snapshot=recovery?read('blockday-recovery-'+account?.sub,null):window.BlockdaySync?.exportData()||{blocks,ideas,profile};
+    if(!snapshot){dialog('<h2>No previous device copy.</h2><p>No replaced local workspace has been kept on this device.</p>');return;}
+    const url=URL.createObjectURL(new Blob([JSON.stringify(snapshot,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download=recovery?'blockday-previous-device-copy.json':'blockday-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
   function settings() {
     const palettes = {sage:'Green',ocean:'Blue',berry:'Red',neutral:'White neutral'};
-    return `<section class="bd-heading"><div><span class="bd-kicker">MAKE YOURSELF AT HOME 🏡</span><h1>Your Blockday.</h1><p>A personal space, in your colors.</p></div></section><form id="bd-settings" class="bd-card"><label>Display name<input name="name" maxlength="40" value="${esc(profile.name||'')}"></label><h2>A color that feels like you</h2><div class="bd-palettes">${Object.entries(palettes).map(([c,label])=>`<button type="button" data-palette="${c}" class="${c} ${(profile.theme||'sage')===c?'active':''}" aria-label="${label} theme" title="${label}"></button>`).join('')}</div><div class="bd-custom-theme"><label for="bd-custom-hex">Custom color <small>Your color, throughout the whole app.</small></label><div class="bd-custom-color-row"><input id="bd-custom-color" type="color" aria-label="Pick custom theme color" value="${normalizeColor(profile.customColor)||'#7c5ce7'}"><input id="bd-custom-hex" name="customColor" type="text" maxlength="7" spellcheck="false" autocapitalize="off" pattern="#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})" value="${normalizeColor(profile.customColor)||'#7c5ce7'}" aria-describedby="bd-custom-status" placeholder="#7c5ce7"></div><button type="button" class="bd-secondary" data-action="custom-color" aria-pressed="${profile.theme==='custom'}">Use custom color</button><p id="bd-custom-status" role="status">Hex code or color picker. Works in light and dark mode.</p></div><label>Categories <small>Separate with commas. Existing blocks keep their category.</small><input name="categories" value="${esc(categories.join(', '))}" maxlength="200"></label><button class="bd-primary">Save preferences</button></form><section class="bd-card" id="bd-account-card"><h2>Your account</h2><p>${demo?'You’re exploring a disposable demo. No cloud data is changed.':esc(window.BlockdayAuth?.currentUser()?.email||'Continue with Google for your personal workspace.')}</p>${demo?'<button class="bd-secondary" data-action="exit">Exit demo</button>':'<a class="bd-secondary" href="/login">Sign in with Google</a><button class="bd-secondary" data-action="switch">Switch account</button><button class="bd-secondary" data-action="signout">Sign out</button>'}</section>${appGuide()}${!demo?'<section class="bd-card"><h2>Private until you share</h2><p>Publish a read-only snapshot. Anyone with the link can see it; disable it whenever you like.</p><button class="bd-secondary" data-action="share">Share schedule</button></section>':''}`;
+    return `<section class="bd-heading"><div><span class="bd-kicker">MAKE YOURSELF AT HOME 🏡</span><h1>Your Blockday.</h1><p>A personal space, in your colors.</p></div></section><form id="bd-settings" class="bd-card"><label>Display name<input name="name" maxlength="40" value="${esc(profile.name||'')}"></label><h2>A color that feels like you</h2><div class="bd-palettes">${Object.entries(palettes).map(([c,label])=>`<button type="button" data-palette="${c}" class="${c} ${(profile.theme||'sage')===c?'active':''}" aria-label="${label} theme" title="${label}"></button>`).join('')}</div><div class="bd-custom-theme"><label for="bd-custom-hex">Custom color <small>Your color, throughout the whole app.</small></label><div class="bd-custom-color-row"><input id="bd-custom-color" type="color" aria-label="Pick custom theme color" value="${normalizeColor(profile.customColor)||'#7c5ce7'}"><input id="bd-custom-hex" name="customColor" type="text" maxlength="7" spellcheck="false" autocapitalize="off" pattern="#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})" value="${normalizeColor(profile.customColor)||'#7c5ce7'}" aria-describedby="bd-custom-status" placeholder="#7c5ce7"></div><button type="button" class="bd-secondary" data-action="custom-color" aria-pressed="${profile.theme==='custom'}">Use custom color</button><p id="bd-custom-status" role="status">Hex code or color picker. Works in light and dark mode.</p></div><label>Categories <small>Separate with commas. Existing blocks keep their category.</small><input name="categories" value="${esc(categories.join(', '))}" maxlength="200"></label><button class="bd-primary">Save preferences</button></form><section class="bd-card" id="bd-account-card"><h2>Your account</h2><p>${demo?'You’re exploring a disposable demo. No cloud data is changed.':esc(window.BlockdayAuth?.currentUser()?.email||'Continue with Google for your personal workspace.')}</p>${demo?'<button class="bd-secondary" data-action="exit">Exit demo</button>':'<a class="bd-secondary" href="/login">Sign in with Google</a><button class="bd-secondary" data-action="switch">Switch account</button><button class="bd-secondary" data-action="signout">Sign out</button>'}</section>${appGuide()}${savingCard()}${!demo?'<section class="bd-card"><h2>Private until you share</h2><p>Publish a read-only snapshot. Anyone with the link can see it; disable it whenever you like.</p><button class="bd-secondary" data-action="share">Share schedule</button></section>':''}`;
   }
   function shareDialog() {
     const share=read('blockday-share',{});
@@ -189,6 +224,12 @@
     if(b.dataset.deleteNote&&confirm('Delete this note?')){ideas=ideas.filter(n=>n.id!==b.dataset.deleteNote);save();render();}
     if(b.dataset.palette){profile={...profile,theme:b.dataset.palette};write('blockday-profile',profile);setTheme();document.querySelectorAll('.bd-palettes [data-palette]').forEach(p=>p.classList.toggle('active',p===b));document.querySelector('[data-action="custom-color"]')?.setAttribute('aria-pressed','false');const field=document.getElementById('bd-custom-hex');if(field&&!normalizeColor(field.value)){field.value=normalizeColor(profile.customColor)||'#7c5ce7';field.removeAttribute('aria-invalid');}}
     const action=b.dataset.action;
+    if(action==='tour')startTour();
+    if(action==='tour-next'){if(tourIndex===tourSteps.length-1)endTour();else{tourIndex++;showTour();}}
+    if(action==='tour-back'){tourIndex=Math.max(0,tourIndex-1);showTour();}
+    if(action==='tour-skip'||action==='close'&&tourActive)endTour(true);
+    if(action==='sync-now'){window.BlockdaySync?.changed();window.BlockdaySync?.saveNow();}
+    if(action==='export')downloadData();if(action==='recovery')downloadData(true);
     if(action==='custom-color'){
       const field=document.getElementById('bd-custom-hex'),color=normalizeColor(field.value),status=document.getElementById('bd-custom-status');
       if(!color){status.textContent='Enter a valid hex color, like #7C5CE7.';field.setAttribute('aria-invalid','true');field.focus();return;}
@@ -203,7 +244,13 @@
     if(action==='today'){selected=new Date();month=new Date();render();}
     if(action==='prev'||action==='next'){const delta=action==='prev'?-1:1;if(view==='month')month=new Date(month.getFullYear(),month.getMonth()+delta,1);else selected.setDate(selected.getDate()+delta*(view==='week'?7:1));render();}
   });
-  document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('bd-dialog')?.remove();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(tourActive)endTour(true);else document.getElementById('bd-dialog')?.remove();}});
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Tab')return;const layer=document.getElementById('bd-dialog');if(!layer)return;
+    const controls=Array.from(layer.querySelectorAll('button,a[href],input,select,textarea')).filter(el=>!el.disabled&&el.getClientRects().length);
+    if(!controls.length)return;const first=controls[0],last=controls[controls.length-1];
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+  });
   document.addEventListener('input',event=>{
     if(!['bd-custom-color','bd-custom-hex'].includes(event.target.id))return;
     const field=document.getElementById('bd-custom-hex'),picker=document.getElementById('bd-custom-color');
@@ -265,5 +312,12 @@
   }
   const shared=new URLSearchParams(location.search).get('share');
   if(shared){root.innerHTML='<div class="bd-empty">Loading shared schedule…</div>';fetch((localStorage.getItem('blockday-sync-url')||'https://script.google.com/macros/s/AKfycbyMPgUg0MQlPtHMNBZYAks0_x1VZ2HXb7_iX873gcpg9Vee2LjRIacJHs-ua33OATXH/exec')+'?action=public&token='+encodeURIComponent(shared)).then(r=>r.json()).then(r=>{if(!r.ok)throw new Error(r.error);root.innerHTML=`<main class="bd-shared"><span class="bd-logo"></span><h1>${esc(r.data.profile?.title||'Shared Blockday')}</h1>${r.data.blocks.map(b=>`<article class="bd-card"><small>${esc(b.date)} · ${clockTime(b.start)}</small><h2>${esc(b.title)}</h2></article>`).join('')}</main>`;}).catch(e=>root.innerHTML=`<div class="bd-empty">${esc(e.message)}</div>`);return;}
-  render();landing();
+  function openWorkspace(){
+    blocks=read('blockday-blocks',[]);ideas=read('blockday-ideas',[]);profile=read('blockday-profile',{});categories=profile.categories||['Personal','Work','Wellness','Study'];render();landing();
+    if(!demo&&localStorage.getItem('blockday-auth-session')&&!read('blockday-tour-state',{}).completed&&!document.getElementById('blockday-login'))startTour();
+  }
+  function loadingFailed(){root.innerHTML='<main class="bd-shared"><h1>Your device copy is safe.</h1><p>We could not open your saved cloud workspace. Retry before editing so we do not overwrite it with an empty plan.</p><button class="bd-primary" id="bd-retry-workspace">Retry</button><button class="bd-secondary" data-action="export">Download device copy</button><button class="bd-secondary" data-action="signout">Sign out</button></main>';document.getElementById('bd-retry-workspace').onclick=async()=>{if(await window.BlockdaySync.initialize())openWorkspace();else loadingFailed();};}
+  if(!demo&&localStorage.getItem('blockday-auth-session')&&!document.getElementById('blockday-login')){root.innerHTML='<main class="bd-shared"><p role="status">Opening your saved workspace…</p></main>';window.BlockdaySync.ready.then(ok=>ok?openWorkspace():loadingFailed());}
+  else openWorkspace();
+  addEventListener('blockday-workspace-ready',openWorkspace);
 })();

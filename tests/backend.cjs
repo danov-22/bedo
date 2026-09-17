@@ -1,0 +1,18 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const properties={},writes=[];let token={aud:'test-client',sub:'verified-account',email_verified:'true',exp:Math.floor(Date.now()/1000)+3600},locked=false;
+const context={PropertiesService:{getScriptProperties:()=>({getProperty:k=>properties[k],setProperty:(k,v)=>properties[k]=v})},UrlFetchApp:{fetch:()=>({getResponseCode:()=>200,getContentText:()=>JSON.stringify(token)})},LockService:{getScriptLock:()=>({waitLock(){locked=true},releaseLock(){locked=false}})},ContentService:{MimeType:{JSON:'json'},createTextOutput:text=>({setMimeType:()=>JSON.parse(text)})}};
+vm.createContext(context);vm.runInContext(fs.readFileSync('Google-Apps-Script/Code.gs','utf8'),context);
+context.getOrCreateSheets_=()=>Object.fromEntries(['Blocks','Ideas','DailyNotes','Routines','Settings'].map(n=>[n,n]));
+context.writeRows_=(sheet,userId,records)=>{assert(locked);writes.push({sheet,userId,records});};
+assert.equal(context.doGet({parameter:{action:'load',userId:'victim'}}).ok,false,'private GET loads denied');
+assert.equal(context.doPost({postData:{contents:JSON.stringify({action:'save',userId:'victim'})}}).ok,false,'unconfigured private storage fails closed');
+properties.OAUTH_CLIENT_ID='test-client';
+assert.equal(context.doPost({postData:{contents:JSON.stringify({action:'save',userId:'victim'})}}).ok,false,'caller userId is not authentication');
+const result=context.doPost({postData:{contents:JSON.stringify({action:'save',userId:'victim',credential:'test-token',data:{blocks:[{id:'block'}],ideas:[{id:'note'}]}})}});
+assert.equal(result.ok,true);assert.equal(result.userId,'google-verified-account');assert(writes.every(w=>w.userId==='google-verified-account'));assert.equal(locked,false);
+const count=writes.length;
+assert.equal(context.doPost({postData:{contents:JSON.stringify({action:'save',credential:'test-token',data:{ideas:[{text:'x'.repeat(45001)}]}})}}).ok,false);
+assert.equal(writes.length,count,'oversized data rejected before deleting rows');
+token={...token,aud:'wrong-client'};
+assert.equal(context.doPost({postData:{contents:JSON.stringify({action:'save',credential:'test-token'})}}).ok,false,'wrong Google client rejected');
+console.log('PASS backend: private GET/anonymous access denied, validated identity isolation, locked writes and prevalidation');
