@@ -1,6 +1,6 @@
-# Blockday
+# bedo
 
-Blockday is a calm, self-hostable time-blocking planner for daily schedules, weekly routines, brainstorm notes, and momentum tracking.
+bedo is a calm, self-hostable time-blocking planner for daily schedules, weekly routines, brainstorm notes, and momentum tracking.
 
 ## Features
 

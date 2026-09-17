@@ -1,5 +1,5 @@
 /**
- * Blockday authenticated Google Sheets storage.
+ * bedo authenticated Google Sheets storage.
  * See GOOGLE-LOGIN.md for setup. Configure OAUTH_CLIENT_ID and redeploy.
  * Private POST operations validate Google credentials or a signed session.
  * Only explicitly published schedule snapshots are publicly readable.
@@ -14,8 +14,8 @@ function doGet(e) {
   if (action === "health") {
     return jsonOutput_({
       ok: true,
-      app: "Blockday",
-      message: "Blockday sync is ready."
+      app: "bedo",
+      message: "bedo sync is ready."
     });
   }
   if (action === "load") {
@@ -75,7 +75,7 @@ function validateGoogleCredential_(credential) {
   });
   if (response.getResponseCode() !== 200) throw new Error("The Google sign-in has expired. Sign in again.");
   var token = JSON.parse(response.getContentText());
-  if (String(token.aud) !== String(clientId)) throw new Error("This sign-in was not issued for Blockday.");
+  if (String(token.aud) !== String(clientId)) throw new Error("This sign-in was not issued for bedo.");
   if (!token.sub || Number(token.exp || 0) * 1000 <= Date.now()) throw new Error("The Google sign-in has expired.");
   if (String(token.email_verified) !== "true") throw new Error("Use a verified Google account.");
   return token;
@@ -99,9 +99,9 @@ function createSession_(credential) {
 function validateSession_(session) {
   var parts = session.split(".");
   var secret = PropertiesService.getScriptProperties().getProperty("SESSION_SECRET");
-  if (parts.length !== 2 || !secret || signSession_(parts[0], secret) !== parts[1]) throw new Error("Your Blockday session is invalid. Sign in again.");
+  if (parts.length !== 2 || !secret || signSession_(parts[0], secret) !== parts[1]) throw new Error("Your bedo session is invalid. Sign in again.");
   var payload = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[0])).getDataAsString());
-  if (!payload.sub || Number(payload.exp || 0) <= Date.now()) throw new Error("Your Blockday session has expired. Sign in again.");
+  if (!payload.sub || Number(payload.exp || 0) <= Date.now()) throw new Error("Your bedo session has expired. Sign in again.");
   return "google-" + String(payload.sub);
 }
 
@@ -111,7 +111,7 @@ function signSession_(payload, secret) {
 
 function setupSheets() {
   getOrCreateSheets_();
-  return jsonOutput_({ ok: true, message: "Blockday tabs are ready." });
+  return jsonOutput_({ ok: true, message: "bedo tabs are ready." });
 }
 
 function loadData_(userId) {
@@ -141,7 +141,7 @@ function saveData_(userId, data) {
   SHEET_NAMES.slice(0, 5).forEach(function(name) {
     var records = data[{ Blocks: 'blocks', Ideas: 'ideas', DailyNotes: 'dailyNotes', Routines: 'routines', Settings: 'settings' }[name]] || [];
     if (!Array.isArray(records)) throw new Error("Invalid records.");
-    records.forEach(function(record) { if (JSON.stringify(record).length > MAX_CELL_LENGTH) throw new Error("A Blockday record is too large for Google Sheets."); });
+    records.forEach(function(record) { if (JSON.stringify(record).length > MAX_CELL_LENGTH) throw new Error("A bedo record is too large for Google Sheets."); });
   });
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -232,7 +232,7 @@ function writeRows_(sheet, userId, records) {
   var rows = records.map(function(record, index) {
     var payload = JSON.stringify(record);
     if (payload.length > MAX_CELL_LENGTH) {
-      throw new Error("A Blockday record is too large for Google Sheets.");
+      throw new Error("A bedo record is too large for Google Sheets.");
     }
     return [userId, String(record.id || index + 1), payload, now];
   });

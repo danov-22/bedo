@@ -13,6 +13,20 @@ const base = process.env.BLOCKDAY_TEST_BASE || 'http://localhost:8765';
       page.on('pageerror',e=>errors.push(e.message));
       await page.goto(base+'/',{waitUntil:'domcontentloaded'});
       await page.locator('.bd-hero').waitFor();
+      assert.equal(await page.title(),'bedo');
+      assert.equal(await page.locator('#bedo-intro-title').textContent(),'Which one are you?');
+      assert.equal(await page.locator('.bd-bedo-types article').count(),2);
+      assert.equal(await page.evaluate(()=>getComputedStyle(document.body).overflow),'hidden','outer landing scroll locked');
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+1),true,'only landing has a scrollbar');
+      assert.equal(await page.locator('#root').isVisible(),false,'underlying app is hidden');
+      const supplied=await (await page.request.get(base+'/favicon.svg')).text();
+      const paths=[...supplied.matchAll(/<path d="([^"]+)"/g)].map(m=>m[1]);
+      assert.deepEqual(await page.locator('.bd-landing-nav .bd-logo-svg path').evaluateAll(els=>els.map(el=>el.getAttribute('d'))),paths,'main logo uses exact supplied SVG paths');
+      const texts=await page.locator('#features article>span').allTextContents();assert(texts.includes('💭')&&texts.includes('💼')&&!texts.includes('🫧')&&!texts.includes('🌈'));
+      assert.equal(await page.locator('.bd-landing').evaluate(el=>/blockday/i.test(el.textContent)),false,'no old branding in landing');
+      await page.locator('.bd-landing').evaluate(el=>el.scrollTop=400);
+      assert.equal(await page.evaluate(()=>scrollY),0,'scrolling landing does not scroll page behind it');
+      await page.locator('.bd-landing').evaluate(el=>el.scrollTop=0);
       assert.equal(await page.evaluate(()=>document.querySelector('.bd-landing').scrollWidth<=innerWidth),true,'landing fits viewport');
       await page.screenshot({path:path.join(process.env.TEMP,`blockday-landing-${name}.png`)});
       await page.evaluate(()=>localStorage.setItem('blockday-blocks',JSON.stringify([{id:'real-private',title:'Original personal data',date:'2026-9-1',start:8,duration:1}])));
@@ -76,13 +90,13 @@ const base = process.env.BLOCKDAY_TEST_BASE || 'http://localhost:8765';
         if(await page.evaluate(()=>document.documentElement.dataset.mode)!==mode) await page.locator('[data-action=theme]').click();
         for(const palette of ['sage','ocean','berry','neutral']){
           await page.locator(`[data-palette=${palette}]`).click();
-          const colors=await page.evaluate(()=>({bg:getComputedStyle(document.body).backgroundColor,card:getComputedStyle(document.querySelector('.bd-card')).backgroundColor,logo:getComputedStyle(document.querySelector('.bd-logo'),'::after').backgroundColor,logoBg:getComputedStyle(document.querySelector('.bd-logo')).backgroundColor}));
+          const colors=await page.evaluate(()=>({bg:getComputedStyle(document.body).backgroundColor,card:getComputedStyle(document.querySelector('.bd-card')).backgroundColor,logo:getComputedStyle(document.querySelector('.bd-logo-svg g[fill]')).fill,logoBg:getComputedStyle(document.querySelector('.bd-logo-svg>rect')).fill}));
           assert.notEqual(colors.bg,colors.card,'background and cards have distinct colors');
           assert.notEqual(colors.logo,colors.logoBg,'logo lettering contrasts with tile');
-          if(palette==='neutral'){assert.equal(colors.logoBg,'rgb(70, 75, 87)','neutral logo is grey, not green');assert.equal(colors.logo,'rgb(255, 255, 255)','neutral logo lettering remains white');}
+          if(palette==='neutral'){assert.equal(colors.logoBg,mode==='dark'?'rgb(98, 104, 116)':'rgb(139, 144, 155)','neutral logo is grey, not green');assert.equal(colors.logo,'rgb(255, 255, 255)','neutral logo lettering remains white');}
           if(mode==='dark') {
             assert.equal(colors.logo,'rgb(255, 255, 255)','dark-mode face is bright white');
-            assert((await page.evaluate(()=>getComputedStyle(document.querySelector('.bd-logo'),'::after').maskImage)).includes('logo-dark-glyph.svg'),'dark logo shows ^-^');
+            assert.equal(await page.locator('.bd-top .bd-logo-svg path').count(),3,'same supplied logo is used in dark mode');
             const rgb=colors.logoBg.match(/\d+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});
             const luminance=rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;
             assert(1.05/(luminance+.05)>=4.5,'dark-mode face has strong contrast');
@@ -92,9 +106,8 @@ const base = process.env.BLOCKDAY_TEST_BASE || 'http://localhost:8765';
         }
       }
       assert.equal(new Set(surfaces).size,8,'all palettes have distinct light/dark backgrounds');
-      assert((await (await page.request.get(base+'/logo-glyph.svg')).text()).includes('>b-d<'),'new logo glyph served');
-      const darkLogo=await (await page.request.get(base+'/logo-dark-glyph.svg')).text();
-      assert(darkLogo.includes('>^-^<')&&darkLogo.includes('Q50 82 69 72'),'dark face has original smile');
+      assert.equal(await page.locator('.bd-brand .bd-logo-svg').count(),1,'desktop supplied logo rendered');
+      assert.equal(await page.locator('.bd-logo-svg').first().getAttribute('viewBox'),'0 0 1500 1499.999933','supplied SVG proportions preserved');
       const customBackgrounds=[];
       for(const mode of ['light','dark']){
         if(await page.evaluate(()=>document.documentElement.dataset.mode)!==mode)await page.locator('[data-action=theme]').click();
@@ -102,7 +115,7 @@ const base = process.env.BLOCKDAY_TEST_BASE || 'http://localhost:8765';
           await page.locator('#bd-custom-hex').fill(hex);await page.locator('[data-action=custom-color]').click();
           assert.equal(await page.evaluate(()=>document.documentElement.dataset.palette),'custom');
           assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('blockday-profile')).customColor),hex);
-          const colors=await page.evaluate(()=>({bg:getComputedStyle(document.body).backgroundColor,card:getComputedStyle(document.querySelector('.bd-card')).backgroundColor,ink:getComputedStyle(document.querySelector('.bd-logo'),'::after').backgroundColor,logo:getComputedStyle(document.querySelector('.bd-logo')).backgroundColor,primary:getComputedStyle(document.querySelector('#bd-settings>.bd-primary')).backgroundColor,buttonText:getComputedStyle(document.querySelector('#bd-settings>.bd-primary')).color}));
+          const colors=await page.evaluate(()=>({bg:getComputedStyle(document.body).backgroundColor,card:getComputedStyle(document.querySelector('.bd-card')).backgroundColor,ink:getComputedStyle(document.querySelector('.bd-logo-svg g[fill]')).fill,logo:getComputedStyle(document.querySelector('.bd-logo-svg>rect')).fill,primary:getComputedStyle(document.querySelector('#bd-settings>.bd-primary')).backgroundColor,buttonText:getComputedStyle(document.querySelector('#bd-settings>.bd-primary')).color}));
           const luminance=rgb=>{const c=rgb.match(/\d+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});return c[0]*.2126+c[1]*.7152+c[2]*.0722;};
           const ratio=(a,b)=>(Math.max(luminance(a),luminance(b))+.05)/(Math.min(luminance(a),luminance(b))+.05);
           assert(ratio(colors.ink,colors.logo)>=4.5,'custom logo remains readable');

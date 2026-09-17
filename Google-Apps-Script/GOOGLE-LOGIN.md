@@ -3,7 +3,7 @@
 The frontend is ready, but `Blockday-site/auth-config.js` still needs your OAuth **Web client ID**. Never put a client secret in the website.
 
 1. Open [Google's setup guide](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid). Create or select a Google Cloud project, configure Google Auth Platform branding/audience, and create a Web application OAuth client.
-2. Add `https://blockday.vercel.app` as an Authorized JavaScript origin. For local testing, add `http://localhost:8765`. This uses the JavaScript callback, not a redirect-based login. While your audience is in Testing, add your own Gmail account as a test user.
+2. Add `https://b-do.vercel.app` as an Authorized JavaScript origin. For local testing, add `http://localhost:8765`. This uses the JavaScript callback, not a redirect-based login. While your audience is in Testing, add your own Gmail account as a test user.
 3. Send the Web client ID ending in `.apps.googleusercontent.com` so it can be entered in `Blockday-site/auth-config.js` and deployed.
 4. In your existing Sheet's Apps Script project, replace the code with this repository's `Google-Apps-Script/Code.gs`.
 5. Under Project Settings → Script properties, add `OAUTH_CLIENT_ID` with exactly the same Web client ID. Leave `SESSION_SECRET` alone; the script creates it automatically.
