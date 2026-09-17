@@ -83,6 +83,11 @@
     const scrollPositions = new Map(Array.from(document.querySelectorAll('.bd-day-track')).map(track=>[track.dataset.trackDate,track.parentElement.scrollTop]));
     setTheme();
     root.innerHTML = `<div class="bd-shell"><aside class="bd-sidebar"><a class="bd-brand" href="/"><span class="bd-logo">${logo()}</span>bedo<span class="bd-brand-dot">.</span></a><p>A little space for your day.</p><nav>${nav()}</nav><div class="bd-sidebar-note">Make room for life.<br>Not just your to-do list. ☀️</div></aside><main class="bd-main"><header class="bd-top"><a class="bd-logo" href="/" aria-label="bedo home">${logo()}</a><div class="bd-top-actions">${demo?'<button class="bd-exit" data-action="exit">← Exit demo</button>':''}<span id="bd-save-badge" class="bd-save-badge"></span><time id="bd-clock"></time><button class="bd-icon" data-action="theme" aria-label="Toggle light or dark theme">${read('bedo-theme','light')==='dark'?'☀':'☾'}</button></div></header><div class="bd-content">${page==='calendar'?calendar():page==='brainstorm'?brainstorm():page==='insights'?insights():settings()}</div></main><nav class="bd-mobile-nav">${nav()}</nav></div>`;
+    if(page==='calendar'){
+      const heading=root.querySelector('.bd-heading>div');
+      if(profile.name?.trim()){const greeting=document.createElement('p');greeting.className='bd-greeting';greeting.textContent='Hello, '+profile.name.trim()+'.';heading.prepend(greeting);}
+      const share=document.createElement('button');share.className='bd-secondary bd-share-day';share.dataset.action='share-day';share.textContent='Share a day ↗';root.querySelector('.bd-toolbar').after(share);
+    }
     tick(); mountNoteButton(); updateSavingStatus();
     requestAnimationFrame(() => document.querySelectorAll('.bd-timeline').forEach(timeline => {
       const track=timeline.querySelector('.bd-day-track');
@@ -96,6 +101,17 @@
     const title = view==='month' ? 'A little space for everything.' : dateLabel(selected,{weekday:'long',month:'long',day:'numeric'});
     return `<section class="bd-heading"><div><span class="bd-kicker">YOUR TIME, YOUR PACE ✨</span><h1>${title}</h1><p>${view==='month'?'Pick a day. Make room for what matters.':'A flexible plan. Not a perfect one.'}</p></div><button class="bd-primary" data-action="add">＋ Add block</button></section><div class="bd-toolbar"><div class="bd-segments">${['month','day','week'].map(v=>`<button data-view="${v}" class="${view===v?'active':''}">${v==='month'?'Calendar':v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div><div class="bd-date-nav"><button data-action="prev" aria-label="Previous period">‹</button><strong>${view==='month'?dateLabel(month,{month:'long',year:'numeric'}):view==='week'?'Week of '+dateLabel(monday(),{month:'short',day:'numeric'}):dateLabel(selected,{month:'short',day:'numeric'})}</strong><button data-action="next" aria-label="Next period">›</button><button data-action="today">Today</button></div></div>${filters()}${view==='month'?monthCalendar():view==='week'?weekCalendar():dayCalendar(selected)}<p class="bd-help">${view==='month'?'Tap any date to explore and plan your day.':'Drag the ⋮⋮ handle to move a block. Changes apply to this occurrence only.'}</p>`;
   }
+  function dayRundown(day) {
+    const items=blocks.filter(b=>b.date===dateKey(day)).sort((a,b)=>a.start-b.start);
+    return `${profile.name?.trim()?profile.name.trim()+"’s schedule":'My schedule'}\n${dateLabel(day,{weekday:'long',day:'numeric',month:'long',year:'numeric'})}\n\n${items.length?items.map(b=>`${time(b.start)}–${time(b.start+b.duration)} · ${b.title} (${category(b)})${b.completed?' ✓':''}`).join('\n'):'No blocks planned.'}\n\nShared from bedo`;
+  }
+  function dayShareDialog(){
+    dialog(`<h2>Share a day.</h2><p>All categories for this date. Brainstorm notes are never included. Edit the rundown before sharing.</p><label>Date<input id="bd-rundown-date" type="date" value="${selected.getFullYear()}-${String(selected.getMonth()+1).padStart(2,'0')}-${String(selected.getDate()).padStart(2,'0')}"></label><label>Text rundown<textarea id="bd-rundown" rows="9">${esc(dayRundown(selected))}</textarea></label><div class="bd-rundown-actions"><button class="bd-primary" data-action="copy-day">Copy text</button><a class="bd-secondary" id="bd-whatsapp" target="_blank" rel="noopener noreferrer">Open WhatsApp ↗</a></div><p id="bd-rundown-status" role="status">Choose a recipient in WhatsApp. Nothing is sent automatically.</p>`);
+    updateWhatsApp();
+  }
+  function updateWhatsApp(){const link=document.getElementById('bd-whatsapp');if(link)link.href='https://wa.me/?text='+encodeURIComponent(document.getElementById('bd-rundown').value);}
+  document.addEventListener('input',e=>{if(e.target.id==='bd-rundown')updateWhatsApp();});
+  document.addEventListener('change',e=>{if(e.target.id==='bd-rundown-date'&&e.target.value){document.getElementById('bd-rundown').value=dayRundown(fromKey(e.target.value));updateWhatsApp();}});
   function monthCalendar() {
     const first=new Date(month.getFullYear(),month.getMonth(),1), offset=(first.getDay()+6)%7;
     const start=new Date(first); start.setDate(1-offset);
@@ -122,6 +138,7 @@
   }
   function appGuide() {
     const tips = [
+      ['Send a day as a rundown', 'Choose Share a day in Timeblock, pick a date, then edit or copy the text. Open WhatsApp to choose a recipient yourself. This includes every category on that date, but never your Brainstorm notes. Your display name appears above the calendar and in this rundown.'],
       ['Move just this block', 'In Day or Week view, drag the ⋮⋮ handle to change a block’s time in 5-minute steps. You can drag near the timeline’s edge to scroll. Other dates, including repeated occurrences, stay untouched.'],
       ['Give a block the time it needs', 'Tap the block’s title to edit its start time and Minutes. Blocks can be short or long, but must end by midnight on the chosen day.'],
       ['Repeat without locking your week', 'When adding a new block, choose Daily, Weekdays, or Weekly in Repeat. This creates the next 4 weeks of separate occurrences; editing or deleting one does not change the others.'],
@@ -160,10 +177,25 @@
     const [nextPage,nextView,title,body]=tourSteps[tourIndex];page=nextPage;if(nextView)view=nextView;render();
     window.scrollTo({top:0});
     dialog(`<span class="bd-kicker">A LITTLE WALKTHROUGH · ${tourIndex+1} / ${tourSteps.length}</span><h2 id="bd-tour-title">${title}</h2><p>${body}</p><div class="bd-tour-progress" aria-hidden="true">${tourSteps.map((_,i)=>`<i class="${i===tourIndex?'active':''}"></i>`).join('')}</div><div class="bd-tour-actions"><button class="bd-secondary" data-action="tour-skip">Skip tour</button>${tourIndex?'<button class="bd-secondary" data-action="tour-back">Back</button>':''}<button class="bd-primary" data-action="tour-next">${tourIndex===tourSteps.length-1?'Finish':'Next'}</button></div>`);
-    const layer=document.getElementById('bd-dialog');layer.classList.add('bd-tour-layer');layer.querySelector('[role=dialog]').setAttribute('aria-labelledby','bd-tour-title');layer.querySelector('[data-action=tour-next]').focus();
+    const layer=document.getElementById('bd-dialog');layer.classList.add('bd-tour-layer');layer.querySelector('[role=dialog]').setAttribute('aria-labelledby','bd-tour-title');layer.querySelector('[data-action=tour-next]').focus({preventScroll:true});
+    requestAnimationFrame(()=>positionTour());
   }
+  const tourTargets=['.bd-heading','.bd-month','.bd-heading [data-action=add]','.bd-timeline','.bd-week-mobile,.bd-week-grid','.bd-note-grid','.bd-stats','#bd-saving-card','#bd-settings'];
+  function positionTour(){
+    document.querySelectorAll('.bd-tour-highlight').forEach(el=>el.classList.remove('bd-tour-highlight'));
+    const layer=document.querySelector('.bd-tour-layer');if(!tourActive||!layer)return;
+    const target=Array.from(document.querySelectorAll(tourTargets[tourIndex])).find(el=>el.getBoundingClientRect().height>0)||document.querySelector('.bd-heading');if(!target)return;
+    target.classList.add('bd-tour-highlight');
+    const top=document.querySelector('.bd-top').getBoundingClientRect().height+12;
+    window.scrollBy({top:target.getBoundingClientRect().top-top,behavior:'instant'});
+    const rect=target.getBoundingClientRect(),sheet=layer.querySelector('.bd-dialog').getBoundingClientRect();
+    const frame=document.createElement('div');frame.className='bd-tour-frame';frame.setAttribute('aria-hidden','true');
+    layer.querySelector('.bd-tour-frame')?.remove();layer.prepend(frame);
+    Object.assign(frame.style,{left:rect.left+'px',top:Math.max(top,rect.top)+'px',width:rect.width+'px',height:Math.max(0,Math.min(rect.bottom,sheet.top-14)-Math.max(top,rect.top))+'px'});
+  }
+  addEventListener('resize',()=>{if(tourActive)positionTour();});
   function startTour(){tourOrigin={page,view};tourIndex=0;tourActive=true;showTour();}
-  function endTour(skipped=false){tourActive=false;write('bedo-tour-state',{version:1,completed:true,skipped});document.getElementById('bd-dialog')?.remove();if(tourOrigin){page=tourOrigin.page;view=tourOrigin.view;}render();}
+  function endTour(skipped=false){tourActive=false;write('bedo-tour-state',{version:1,completed:true,skipped});document.getElementById('bd-dialog')?.remove();if(tourOrigin){page=tourOrigin.page;view=tourOrigin.view;}render();document.querySelector('[data-action=tour]')?.focus();}
   function downloadData(recovery=false){
     const account=window.BedoAuth?.currentUser(),snapshot=recovery?read('bedo-recovery-'+account?.sub,null):window.BedoSync?.exportData()||{blocks,ideas,profile};
     if(!snapshot){dialog('<h2>No previous device copy.</h2><p>No replaced local workspace has been kept on this device.</p>');return;}
@@ -213,7 +245,7 @@
     else { if(profile.theme==='custom'){const color=normalizeColor(values.get('customColor'));if(!color)return;profile={...profile,customColor:color};} profile={...profile,name:values.get('name').trim(),categories:[...new Set(values.get('categories').split(',').map(c=>c.trim()).filter(Boolean))].slice(0,12)};categories=profile.categories.length?profile.categories:['Personal','Work'];profile.categories=categories;write('bedo-profile',profile); }
     save();document.getElementById('bd-dialog')?.remove();render();
   });
-  document.addEventListener('click',event=>{
+  document.addEventListener('click',async event=>{
     const b=event.target.closest('button,a');if(!b)return;
     if(b.dataset.page){page=b.dataset.page;render();window.scrollTo(0,0);}
     if(b.dataset.view){view=b.dataset.view;render();}
@@ -228,6 +260,8 @@
     if(b.dataset.deleteNote&&confirm('Delete this note?')){ideas=ideas.filter(n=>n.id!==b.dataset.deleteNote);save();render();}
     if(b.dataset.palette){profile={...profile,theme:b.dataset.palette};write('bedo-profile',profile);setTheme();document.querySelectorAll('.bd-palettes [data-palette]').forEach(p=>p.classList.toggle('active',p===b));document.querySelector('[data-action="custom-color"]')?.setAttribute('aria-pressed','false');const field=document.getElementById('bd-custom-hex');if(field&&!normalizeColor(field.value)){field.value=normalizeColor(profile.customColor)||'#7c5ce7';field.removeAttribute('aria-invalid');}}
     const action=b.dataset.action;
+    if(action==='share-day')dayShareDialog();
+    if(action==='copy-day'){const field=document.getElementById('bd-rundown'),status=document.getElementById('bd-rundown-status');try{await navigator.clipboard.writeText(field.value);status.textContent='Copied. Paste it into any chat.';}catch{field.focus();field.select();status.textContent='Select and copy the text above to share it.';}}
     if(action==='tour')startTour();
     if(action==='tour-next'){if(tourIndex===tourSteps.length-1)endTour();else{tourIndex++;showTour();}}
     if(action==='tour-back'){tourIndex=Math.max(0,tourIndex-1);showTour();}

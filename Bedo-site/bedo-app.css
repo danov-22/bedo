@@ -36,3 +36,17 @@ body.bd-landing-open{overflow:hidden;height:100dvh}body.bd-landing-open #root{di
 .bd-checkbox{display:flex;align-items:center;gap:10px}.bd-checkbox input{width:18px;min-height:18px}#bd-share-status{font-size:12px;line-height:1.8;overflow-wrap:anywhere}.bd-card>.bd-secondary{margin:5px 5px 5px 0}
 .bd-logo{background:transparent;border-radius:0;box-shadow:none!important}.bd-logo:after{content:none!important}.bd-logo-svg{display:block;width:100%;height:100%;overflow:visible}.bd-logo-svg>rect{fill:var(--logo-bg)}.bd-logo-svg g[fill]{fill:var(--logo-ink)}
 :root[data-palette=neutral]{--logo-bg:#8b909b;--logo-ink:#fff}:root[data-mode=dark][data-palette=neutral]{--logo-bg:#626874;--logo-ink:#fff}
+/* Guided mobile walkthrough: keep the target visible above a compact sheet. */
+#bd-dialog.bd-tour-layer{background:transparent;backdrop-filter:none;padding:12px;place-items:end center}
+#bd-dialog.bd-tour-layer .bd-dialog{margin:0;max-height:48dvh;padding:20px;width:min(100%,460px);border:1px solid var(--line)}
+.bd-tour-layer .bd-dialog h2{font-size:21px;letter-spacing:-.5px}
+.bd-tour-layer .bd-dialog>p{font-size:13px;line-height:1.5;margin:12px 0}
+.bd-tour-layer .bd-tour-progress{margin:12px 0}
+.bd-tour-layer .bd-tour-actions{position:sticky;bottom:0;background:var(--card);padding-top:8px}
+.bd-tour-layer .bd-tour-actions button{min-height:44px;font-size:12px}
+.bd-tour-frame{position:fixed;border:3px solid var(--primary);border-radius:14px;box-shadow:0 0 0 9999px #0005;pointer-events:none;z-index:-1}
+.bd-greeting{color:var(--primary)!important;font-weight:600;margin-bottom:10px}
+.bd-share-day{margin-bottom:16px;min-height:44px}
+.bd-rundown-actions{display:flex;flex-wrap:wrap;gap:10px}
+#bd-rundown{min-height:180px;white-space:pre-wrap;font-size:13px}
+@media(max-height:500px){#bd-dialog.bd-tour-layer .bd-dialog{max-height:58dvh}.bd-tour-layer .bd-dialog>p{font-size:12px}}
