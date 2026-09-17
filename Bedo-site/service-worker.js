@@ -1,4 +1,4 @@
-const CACHE = "blockday-v14";
+const CACHE = "bedo-v14";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -7,14 +7,14 @@ const APP_SHELL = [
   "/manifest.webmanifest",
   "/assets/index-zx5AaXri.js",
   "/assets/index-DcYDiIl0.css",
-  "/blockday-sync.js",
-  "/blockday-sync.css",
-  "/blockday-enhancements.js",
-  "/blockday-enhancements.css",
-  "/blockday-auth.js",
-  "/blockday-auth.css",
-  "/blockday-product.js",
-  "/blockday-product.css",
+  "/bedo-sync.js",
+  "/bedo-sync.css",
+  "/bedo-enhancements.js",
+  "/bedo-enhancements.css",
+  "/bedo-auth.js",
+  "/bedo-auth.css",
+  "/bedo-product.js",
+  "/bedo-product.css",
   "/auth-config.js"
 ];
 

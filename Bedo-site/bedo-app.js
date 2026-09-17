@@ -7,7 +7,7 @@
   function logo(){const n=++logoSequence;return mainLogoMarkup.replaceAll('7cc8130902','bedo-'+n+'-smile').replaceAll('f0be134f68','bedo-'+n+'-letters');}
   const demo = new URLSearchParams(location.search).has('demo');
   const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (_) { return fallback; } };
-  const write = (key, value) => {localStorage.setItem(key, JSON.stringify(value));window.BlockdaySync?.changed();};
+  const write = (key, value) => {localStorage.setItem(key, JSON.stringify(value));window.BedoSync?.changed();};
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const dateKey = d => `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
   const fromKey = key => { const [y,m,d] = key.split('-').map(Number); return new Date(y,m-1,d,12); };
@@ -17,15 +17,15 @@
   const clockTime = hours => { const n=Math.round(hours*60); return new Date(2000,0,1,Math.floor(n/60),n%60).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); };
   const uid = () => crypto.randomUUID ? crypto.randomUUID() : `b-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const icons = { calendar:'▦', brainstorm:'✎', insights:'↗', settings:'⚙' };
-  let blocks = read('blockday-blocks', []), ideas = read('blockday-ideas', []);
-  let profile = read('blockday-profile', {});
+  let blocks = read('bedo-blocks', []), ideas = read('bedo-ideas', []);
+  let profile = read('bedo-profile', {});
   let categories = profile.categories || ['Personal','Work','Wellness','Study'];
   let page = ['brainstorm','insights','settings'].includes(location.pathname.slice(1)) ? location.pathname.slice(1) : 'calendar';
   let view = 'month', selected = new Date(), month = new Date(), filter = 'All', drag = null;
   const category = block => block.category || (block.color === 'blue' ? 'Work' : block.color === 'gold' ? 'Wellness' : 'Personal');
   const tint = cat => ['mint','lavender','peach','blue'][Math.max(0,categories.indexOf(cat))%4];
   const visible = day => blocks.filter(b => b.date === dateKey(day) && (filter==='All' || category(b)===filter));
-  function save() { write('blockday-blocks',blocks); write('blockday-ideas',ideas); }
+  function save() { write('bedo-blocks',blocks); write('bedo-ideas',ideas); }
   function normalizeColor(value) {
     const raw=String(value||'').trim().replace(/^#/,'');
     if (/^[0-9a-f]{3}$/i.test(raw)) return '#'+raw.split('').map(c=>c+c).join('').toLowerCase();
@@ -49,13 +49,13 @@
     return target;
   }
   function setTheme() {
-    if (profile.theme === 'sand') { profile = {...profile, theme:'neutral'}; write('blockday-profile',profile); }
-    document.documentElement.dataset.mode = read('blockday-theme','light');
+    if (profile.theme === 'sand') { profile = {...profile, theme:'neutral'}; write('bedo-profile',profile); }
+    document.documentElement.dataset.mode = read('bedo-theme','light');
     document.documentElement.dataset.palette = profile.theme || 'sage';
     const tokens=['bg','card','text','muted','line','soft','primary','logo-bg','logo-ink','shadow'];
     tokens.forEach(key=>document.documentElement.style.removeProperty('--'+key));
     if(profile.theme==='custom') {
-      const base=normalizeColor(profile.customColor)||'#7c5ce7',dark=read('blockday-theme','light')==='dark';
+      const base=normalizeColor(profile.customColor)||'#7c5ce7',dark=read('bedo-theme','light')==='dark';
       const bg=mixColor(base,dark?'#111318':'#f5f5f8',dark?.91:.95);
       const values=dark?{
         bg,card:mixColor(base,'#1d2028',.88),text:mixColor(base,'#ffffff',.96),muted:mixColor(base,'#bdc3d0',.90),line:mixColor(base,'#373c49',.84),soft:mixColor(base,'#292e3a',.80),primary:contrastColor(base,bg,'#ffffff')
@@ -82,7 +82,7 @@
   function render() {
     const scrollPositions = new Map(Array.from(document.querySelectorAll('.bd-day-track')).map(track=>[track.dataset.trackDate,track.parentElement.scrollTop]));
     setTheme();
-    root.innerHTML = `<div class="bd-shell"><aside class="bd-sidebar"><a class="bd-brand" href="/"><span class="bd-logo">${logo()}</span>bedo<span class="bd-brand-dot">.</span></a><p>A little space for your day.</p><nav>${nav()}</nav><div class="bd-sidebar-note">Make room for life.<br>Not just your to-do list. ☀️</div></aside><main class="bd-main"><header class="bd-top"><a class="bd-logo" href="/" aria-label="bedo home">${logo()}</a><div class="bd-top-actions">${demo?'<button class="bd-exit" data-action="exit">← Exit demo</button>':''}<span id="bd-save-badge" class="bd-save-badge"></span><time id="bd-clock"></time><button class="bd-icon" data-action="theme" aria-label="Toggle light or dark theme">${read('blockday-theme','light')==='dark'?'☀':'☾'}</button></div></header><div class="bd-content">${page==='calendar'?calendar():page==='brainstorm'?brainstorm():page==='insights'?insights():settings()}</div></main><nav class="bd-mobile-nav">${nav()}</nav></div>`;
+    root.innerHTML = `<div class="bd-shell"><aside class="bd-sidebar"><a class="bd-brand" href="/"><span class="bd-logo">${logo()}</span>bedo<span class="bd-brand-dot">.</span></a><p>A little space for your day.</p><nav>${nav()}</nav><div class="bd-sidebar-note">Make room for life.<br>Not just your to-do list. ☀️</div></aside><main class="bd-main"><header class="bd-top"><a class="bd-logo" href="/" aria-label="bedo home">${logo()}</a><div class="bd-top-actions">${demo?'<button class="bd-exit" data-action="exit">← Exit demo</button>':''}<span id="bd-save-badge" class="bd-save-badge"></span><time id="bd-clock"></time><button class="bd-icon" data-action="theme" aria-label="Toggle light or dark theme">${read('bedo-theme','light')==='dark'?'☀':'☾'}</button></div></header><div class="bd-content">${page==='calendar'?calendar():page==='brainstorm'?brainstorm():page==='insights'?insights():settings()}</div></main><nav class="bd-mobile-nav">${nav()}</nav></div>`;
     tick(); mountNoteButton(); updateSavingStatus();
     requestAnimationFrame(() => document.querySelectorAll('.bd-timeline').forEach(timeline => {
       const track=timeline.querySelector('.bd-day-track');
@@ -138,12 +138,12 @@
     return `<section class="bd-card" id="bd-saving-card"><h2>Your saved data</h2><p id="bd-save-status" role="status"></p><p id="bd-save-time"></p><p>Schedules and Brainstorm notes save on this device first. After Google sign-in, they back up to bedo’s account-separated Google Sheet. This does not create a Sheet in your own Google Drive.</p><button class="bd-secondary" data-action="sync-now">Save online now</button><button class="bd-secondary" data-action="export">Download my data</button><button class="bd-secondary" data-action="recovery">Download previous device copy</button></section>`;
   }
   function updateSavingStatus(){
-    const status=demo?{message:'Demo changes stay on this device. No account or cloud data is changed.'}:window.BlockdaySync?.getStatus()||{message:'Saved on this device.'};
+    const status=demo?{message:'Demo changes stay on this device. No account or cloud data is changed.'}:window.BedoSync?.getStatus()||{message:'Saved on this device.'};
     const label=document.getElementById('bd-save-status');if(label)label.textContent=status.message;
     const stamp=document.getElementById('bd-save-time');if(stamp)stamp.textContent=status.lastSavedAt?'Last confirmed online save: '+new Date(status.lastSavedAt).toLocaleString(): 'No online save confirmed yet.';
     const badge=document.getElementById('bd-save-badge');if(badge){badge.textContent=demo?'Demo':status.state==='saved'?'Saved online':status.state==='saving'?'Saving…':'On device';badge.title=status.message;}
   }
-  addEventListener('blockday-sync-status',updateSavingStatus);
+  addEventListener('bedo-sync-status',updateSavingStatus);
   let tourActive=false,tourIndex=0,tourOrigin=null;
   const tourSteps=[
     ['calendar','month','Welcome to your bedo','A place for your time and your thoughts. This tour shows the features that are easy to miss—nothing you do here adds or changes a block.'],
@@ -163,31 +163,31 @@
     const layer=document.getElementById('bd-dialog');layer.classList.add('bd-tour-layer');layer.querySelector('[role=dialog]').setAttribute('aria-labelledby','bd-tour-title');layer.querySelector('[data-action=tour-next]').focus();
   }
   function startTour(){tourOrigin={page,view};tourIndex=0;tourActive=true;showTour();}
-  function endTour(skipped=false){tourActive=false;write('blockday-tour-state',{version:1,completed:true,skipped});document.getElementById('bd-dialog')?.remove();if(tourOrigin){page=tourOrigin.page;view=tourOrigin.view;}render();}
+  function endTour(skipped=false){tourActive=false;write('bedo-tour-state',{version:1,completed:true,skipped});document.getElementById('bd-dialog')?.remove();if(tourOrigin){page=tourOrigin.page;view=tourOrigin.view;}render();}
   function downloadData(recovery=false){
-    const account=window.BlockdayAuth?.currentUser(),snapshot=recovery?read('blockday-recovery-'+account?.sub,null):window.BlockdaySync?.exportData()||{blocks,ideas,profile};
+    const account=window.BedoAuth?.currentUser(),snapshot=recovery?read('bedo-recovery-'+account?.sub,null):window.BedoSync?.exportData()||{blocks,ideas,profile};
     if(!snapshot){dialog('<h2>No previous device copy.</h2><p>No replaced local workspace has been kept on this device.</p>');return;}
-    const url=URL.createObjectURL(new Blob([JSON.stringify(snapshot,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download=recovery?'blockday-previous-device-copy.json':'blockday-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    const url=URL.createObjectURL(new Blob([JSON.stringify(snapshot,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download=recovery?'bedo-previous-device-copy.json':'bedo-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
   function settings() {
     const palettes = {sage:'Green',ocean:'Blue',berry:'Red',neutral:'White neutral'};
-    return `<section class="bd-heading"><div><span class="bd-kicker">MAKE YOURSELF AT HOME 🏡</span><h1>Your bedo.</h1><p>A personal space, in your colors.</p></div></section><form id="bd-settings" class="bd-card"><label>Display name<input name="name" maxlength="40" value="${esc(profile.name||'')}"></label><h2>A color that feels like you</h2><div class="bd-palettes">${Object.entries(palettes).map(([c,label])=>`<button type="button" data-palette="${c}" class="${c} ${(profile.theme||'sage')===c?'active':''}" aria-label="${label} theme" title="${label}"></button>`).join('')}</div><div class="bd-custom-theme"><label for="bd-custom-hex">Custom color <small>Your color, throughout the whole app.</small></label><div class="bd-custom-color-row"><input id="bd-custom-color" type="color" aria-label="Pick custom theme color" value="${normalizeColor(profile.customColor)||'#7c5ce7'}"><input id="bd-custom-hex" name="customColor" type="text" maxlength="7" spellcheck="false" autocapitalize="off" pattern="#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})" value="${normalizeColor(profile.customColor)||'#7c5ce7'}" aria-describedby="bd-custom-status" placeholder="#7c5ce7"></div><button type="button" class="bd-secondary" data-action="custom-color" aria-pressed="${profile.theme==='custom'}">Use custom color</button><p id="bd-custom-status" role="status">Hex code or color picker. Works in light and dark mode.</p></div><label>Categories <small>Separate with commas. Existing blocks keep their category.</small><input name="categories" value="${esc(categories.join(', '))}" maxlength="200"></label><button class="bd-primary">Save preferences</button></form><section class="bd-card" id="bd-account-card"><h2>Your account</h2><p>${demo?'You’re exploring a disposable demo. No cloud data is changed.':esc(window.BlockdayAuth?.currentUser()?.email||'Continue with Google for your personal workspace.')}</p>${demo?'<button class="bd-secondary" data-action="exit">Exit demo</button>':'<a class="bd-secondary" href="/login">Sign in with Google</a><button class="bd-secondary" data-action="switch">Switch account</button><button class="bd-secondary" data-action="signout">Sign out</button>'}</section>${appGuide()}${savingCard()}${!demo?'<section class="bd-card"><h2>Private until you share</h2><p>Publish a read-only snapshot. Anyone with the link can see it; disable it whenever you like.</p><button class="bd-secondary" data-action="share">Share schedule</button></section>':''}`;
+    return `<section class="bd-heading"><div><span class="bd-kicker">MAKE YOURSELF AT HOME 🏡</span><h1>Your bedo.</h1><p>A personal space, in your colors.</p></div></section><form id="bd-settings" class="bd-card"><label>Display name<input name="name" maxlength="40" value="${esc(profile.name||'')}"></label><h2>A color that feels like you</h2><div class="bd-palettes">${Object.entries(palettes).map(([c,label])=>`<button type="button" data-palette="${c}" class="${c} ${(profile.theme||'sage')===c?'active':''}" aria-label="${label} theme" title="${label}"></button>`).join('')}</div><div class="bd-custom-theme"><label for="bd-custom-hex">Custom color <small>Your color, throughout the whole app.</small></label><div class="bd-custom-color-row"><input id="bd-custom-color" type="color" aria-label="Pick custom theme color" value="${normalizeColor(profile.customColor)||'#7c5ce7'}"><input id="bd-custom-hex" name="customColor" type="text" maxlength="7" spellcheck="false" autocapitalize="off" pattern="#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})" value="${normalizeColor(profile.customColor)||'#7c5ce7'}" aria-describedby="bd-custom-status" placeholder="#7c5ce7"></div><button type="button" class="bd-secondary" data-action="custom-color" aria-pressed="${profile.theme==='custom'}">Use custom color</button><p id="bd-custom-status" role="status">Hex code or color picker. Works in light and dark mode.</p></div><label>Categories <small>Separate with commas. Existing blocks keep their category.</small><input name="categories" value="${esc(categories.join(', '))}" maxlength="200"></label><button class="bd-primary">Save preferences</button></form><section class="bd-card" id="bd-account-card"><h2>Your account</h2><p>${demo?'You’re exploring a disposable demo. No cloud data is changed.':esc(window.BedoAuth?.currentUser()?.email||'Continue with Google for your personal workspace.')}</p>${demo?'<button class="bd-secondary" data-action="exit">Exit demo</button>':'<a class="bd-secondary" href="/login">Sign in with Google</a><button class="bd-secondary" data-action="switch">Switch account</button><button class="bd-secondary" data-action="signout">Sign out</button>'}</section>${appGuide()}${savingCard()}${!demo?'<section class="bd-card"><h2>Private until you share</h2><p>Publish a read-only snapshot. Anyone with the link can see it; disable it whenever you like.</p><button class="bd-secondary" data-action="share">Share schedule</button></section>':''}`;
   }
   function shareDialog() {
-    const share=read('blockday-share',{});
-    if(share.url&&share.url.startsWith('https://blockday.vercel.app/')){share.url=share.url.replace('https://blockday.vercel.app/','https://b-do.vercel.app/');localStorage.setItem('blockday-share',JSON.stringify(share));}
+    const share=read('bedo-share',{});
+    if(share.token){share.url='https://b-do.vercel.app/?share='+encodeURIComponent(share.token);localStorage.setItem('bedo-share',JSON.stringify(share));}
     dialog(`<h2>Share a little view.</h2><p>A snapshot of your blocks, never your private brainstorm notes.</p><label class="bd-checkbox"><input type="checkbox" id="bd-share-notes"> Include daily notes</label><button class="bd-primary" data-action="publish">Publish snapshot</button>${share.token?'<button class="bd-secondary" data-action="unpublish">Disable current link</button>':''}<p id="bd-share-status" role="status">${share.url?`<a href="${esc(share.url)}" target="_blank" rel="noopener">Open current shared schedule ↗</a>`:'You control what gets shared.'}</p>`);
   }
   async function publishShare(disable=false) {
-    const status=document.getElementById('bd-share-status'),session=localStorage.getItem('blockday-auth-session');
+    const status=document.getElementById('bd-share-status'),session=localStorage.getItem('bedo-auth-session');
     if(!session){status.textContent='Sign in with Google before sharing.';return;}
-    const share=read('blockday-share',{});status.textContent=disable?'Disabling link…':'Publishing snapshot…';
+    const share=read('bedo-share',{});status.textContent=disable?'Disabling link…':'Publishing snapshot…';
     try{
-      const body=disable?{action:'unpublish',session,token:share.token}:{action:'publish',session,data:{profile,blocks:blocks.map(({id,title,start,duration,date,category})=>({id,title,start,duration,date,category})),dailyNotes:document.getElementById('bd-share-notes').checked?read('blockday-daily-notes',[]):[]}};
-      const response=await fetch(localStorage.getItem('blockday-sync-url')||'https://script.google.com/macros/s/AKfycbyMPgUg0MQlPtHMNBZYAks0_x1VZ2HXb7_iX873gcpg9Vee2LjRIacJHs-ua33OATXH/exec',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)}),result=await response.json();
+      const body=disable?{action:'unpublish',session,token:share.token}:{action:'publish',session,data:{profile,blocks:blocks.map(({id,title,start,duration,date,category})=>({id,title,start,duration,date,category})),dailyNotes:document.getElementById('bd-share-notes').checked?read('bedo-daily-notes',[]):[]}};
+      const response=await fetch(localStorage.getItem('bedo-sync-url')||'https://script.google.com/macros/s/AKfycbyMPgUg0MQlPtHMNBZYAks0_x1VZ2HXb7_iX873gcpg9Vee2LjRIacJHs-ua33OATXH/exec',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)}),result=await response.json();
       if(!result.ok)throw new Error(result.error||'Sharing could not be completed.');
-      if(disable){localStorage.removeItem('blockday-share');status.textContent='Link disabled.';return;}
-      const url=location.origin+'/?share='+encodeURIComponent(result.token);write('blockday-share',{token:result.token,url});status.innerHTML=`<a href="${esc(url)}" target="_blank" rel="noopener">Open shared schedule ↗</a><br><input readonly aria-label="Shared schedule link" value="${esc(url)}">`;
+      if(disable){localStorage.removeItem('bedo-share');status.textContent='Link disabled.';return;}
+      const url=location.origin+'/?share='+encodeURIComponent(result.token);write('bedo-share',{token:result.token,url});status.innerHTML=`<a href="${esc(url)}" target="_blank" rel="noopener">Open shared schedule ↗</a><br><input readonly aria-label="Shared schedule link" value="${esc(url)}">`;
       if(navigator.clipboard)navigator.clipboard.writeText(url).catch(()=>{});
     }catch(error){status.textContent=error.message;}
   }
@@ -210,7 +210,7 @@
       }
       selected=d;view='day';page='calendar';
     } else if(form.id==='bd-note-form') { const text=values.get('text').trim();if(!text)return;const id=form.dataset.id;if(id)ideas=ideas.map(n=>n.id===id?{...n,text}:n);else ideas.unshift({id:uid(),text,created:new Date().toISOString()}); }
-    else { if(profile.theme==='custom'){const color=normalizeColor(values.get('customColor'));if(!color)return;profile={...profile,customColor:color};} profile={...profile,name:values.get('name').trim(),categories:[...new Set(values.get('categories').split(',').map(c=>c.trim()).filter(Boolean))].slice(0,12)};categories=profile.categories.length?profile.categories:['Personal','Work'];profile.categories=categories;write('blockday-profile',profile); }
+    else { if(profile.theme==='custom'){const color=normalizeColor(values.get('customColor'));if(!color)return;profile={...profile,customColor:color};} profile={...profile,name:values.get('name').trim(),categories:[...new Set(values.get('categories').split(',').map(c=>c.trim()).filter(Boolean))].slice(0,12)};categories=profile.categories.length?profile.categories:['Personal','Work'];profile.categories=categories;write('bedo-profile',profile); }
     save();document.getElementById('bd-dialog')?.remove();render();
   });
   document.addEventListener('click',event=>{
@@ -226,25 +226,25 @@
     if(b.dataset.scheduleNote){const n=ideas.find(n=>n.id===b.dataset.scheduleNote);blockDialog(null,n?.text.slice(0,120));}
     if(b.dataset.editNote)noteDialog(b.dataset.editNote);
     if(b.dataset.deleteNote&&confirm('Delete this note?')){ideas=ideas.filter(n=>n.id!==b.dataset.deleteNote);save();render();}
-    if(b.dataset.palette){profile={...profile,theme:b.dataset.palette};write('blockday-profile',profile);setTheme();document.querySelectorAll('.bd-palettes [data-palette]').forEach(p=>p.classList.toggle('active',p===b));document.querySelector('[data-action="custom-color"]')?.setAttribute('aria-pressed','false');const field=document.getElementById('bd-custom-hex');if(field&&!normalizeColor(field.value)){field.value=normalizeColor(profile.customColor)||'#7c5ce7';field.removeAttribute('aria-invalid');}}
+    if(b.dataset.palette){profile={...profile,theme:b.dataset.palette};write('bedo-profile',profile);setTheme();document.querySelectorAll('.bd-palettes [data-palette]').forEach(p=>p.classList.toggle('active',p===b));document.querySelector('[data-action="custom-color"]')?.setAttribute('aria-pressed','false');const field=document.getElementById('bd-custom-hex');if(field&&!normalizeColor(field.value)){field.value=normalizeColor(profile.customColor)||'#7c5ce7';field.removeAttribute('aria-invalid');}}
     const action=b.dataset.action;
     if(action==='tour')startTour();
     if(action==='tour-next'){if(tourIndex===tourSteps.length-1)endTour();else{tourIndex++;showTour();}}
     if(action==='tour-back'){tourIndex=Math.max(0,tourIndex-1);showTour();}
     if(action==='tour-skip'||action==='close'&&tourActive)endTour(true);
-    if(action==='sync-now'){window.BlockdaySync?.changed();window.BlockdaySync?.saveNow();}
+    if(action==='sync-now'){window.BedoSync?.changed();window.BedoSync?.saveNow();}
     if(action==='export')downloadData();if(action==='recovery')downloadData(true);
     if(action==='custom-color'){
       const field=document.getElementById('bd-custom-hex'),color=normalizeColor(field.value),status=document.getElementById('bd-custom-status');
       if(!color){status.textContent='Enter a valid hex color, like #7C5CE7.';field.setAttribute('aria-invalid','true');field.focus();return;}
       field.value=color;field.removeAttribute('aria-invalid');document.getElementById('bd-custom-color').value=color;
-      profile={...profile,theme:'custom',customColor:color};write('blockday-profile',profile);setTheme();
+      profile={...profile,theme:'custom',customColor:color};write('bedo-profile',profile);setTheme();
       document.querySelectorAll('.bd-palettes [data-palette]').forEach(p=>p.classList.remove('active'));b.setAttribute('aria-pressed','true');status.textContent='Your custom color is applied and saved.';
     }
     if(action==='add')blockDialog();if(action==='note')noteDialog();if(action==='close')document.getElementById('bd-dialog')?.remove();
-    if(action==='exit')window.BlockdayDemo?.exit();if(action==='switch')window.BlockdayAuth?.switchAccount();if(action==='signout')window.BlockdayAuth?.signOut();
+    if(action==='exit')window.BedoDemo?.exit();if(action==='switch')window.BedoAuth?.switchAccount();if(action==='signout')window.BedoAuth?.signOut();
     if(action==='share')shareDialog();if(action==='publish')publishShare();if(action==='unpublish')publishShare(true);
-    if(action==='theme'){write('blockday-theme',read('blockday-theme','light')==='dark'?'light':'dark');render();}
+    if(action==='theme'){write('bedo-theme',read('bedo-theme','light')==='dark'?'light':'dark');render();}
     if(action==='today'){selected=new Date();month=new Date();render();}
     if(action==='prev'||action==='next'){const delta=action==='prev'?-1:1;if(view==='month')month=new Date(month.getFullYear(),month.getMonth()+delta,1);else selected.setDate(selected.getDate()+delta*(view==='week'?7:1));render();}
   });
@@ -286,7 +286,7 @@
     const now=new Date(),today=dateKey(now);
     if(today!==deviceDay){
       const previous=deviceDay;deviceDay=today;
-      if(demo && window.BlockdayDemo?.refresh()) blocks=read('blockday-blocks',[]);
+      if(demo && window.BedoDemo?.refresh()) blocks=read('bedo-blocks',[]);
       if(dateKey(selected)===previous){selected=now;month=new Date(now);}
       render();return;
     }
@@ -298,30 +298,30 @@
     if(document.getElementById('bd-fab'))return;
     const fab=document.createElement('button');fab.id='bd-fab';fab.className='bd-fab';fab.setAttribute('aria-label','Capture a quick note. Drag to move.');fab.title='Quick note · drag to move';fab.innerHTML='✎';document.body.appendChild(fab);
     const place=(x,y)=>{fab.style.right='auto';fab.style.bottom='auto';fab.style.left=Math.max(8,Math.min(innerWidth-63,x))+'px';fab.style.top=Math.max(8,Math.min(innerHeight-63,y))+'px';};
-    const position=read('blockday-quick-note-position',null);if(position)place(position.x,position.y);
+    const position=read('bedo-quick-note-position',null);if(position)place(position.x,position.y);
     let pointer=null,moved=false;
     fab.addEventListener('pointerdown',e=>{const rect=fab.getBoundingClientRect();pointer={id:e.pointerId,x:e.clientX,y:e.clientY,left:rect.left,top:rect.top};moved=false;fab.setPointerCapture(e.pointerId);});
     fab.addEventListener('pointermove',e=>{if(!pointer||pointer.id!==e.pointerId)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;moved ||= Math.hypot(dx,dy)>4;if(moved)place(pointer.left+dx,pointer.top+dy);});
-    fab.addEventListener('pointerup',()=>{if(moved)write('blockday-quick-note-position',{x:fab.offsetLeft,y:fab.offsetTop});pointer=null;});
+    fab.addEventListener('pointerup',()=>{if(moved)write('bedo-quick-note-position',{x:fab.offsetLeft,y:fab.offsetTop});pointer=null;});
     fab.addEventListener('pointercancel',()=>{pointer=null;moved=true;});
     fab.addEventListener('click',()=>{if(moved){moved=false;return;}noteDialog();});
     addEventListener('resize',()=>{if(fab.style.left)place(fab.offsetLeft,fab.offsetTop);});
   }
   function landing() {
-    const screen=document.getElementById('blockday-login');if(!screen)return;
-    const google=screen.querySelector('#blockday-google-button'),note=screen.querySelector('.login-note');
+    const screen=document.getElementById('bedo-login');if(!screen)return;
+    const google=screen.querySelector('#bedo-google-button'),note=screen.querySelector('.login-note');
     document.body.classList.add('bd-landing-open');screen.className='bd-landing';screen.innerHTML=`<nav class="bd-landing-nav"><a class="bd-brand" href="/"><span class="bd-logo">${logo()}</span>bedo.</a><div><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="/login" class="bd-secondary">Sign in</a></div></nav><section class="bd-hero"><span class="bd-pill">A little structure. A lot more breathing room. 🌱</span><h1>Make time feel<br>like <span>yours again.</span></h1><p>A bright little planner for your thoughts, your time,<br class="bd-desktop-break"> and all the things that make a day feel like you.</p><div class="bd-hero-actions"><button class="bd-primary" id="bd-demo-cta">Try the demo app <span>↗</span></button><a class="bd-secondary" href="/login">Continue with Google</a></div><small>No pressure. Explore with a disposable demo.</small><div class="bd-preview"><div class="bd-preview-nav"><span class="bd-logo">${logo()}</span><b>Your little daily space</b><span>☀️</span></div><div class="bd-preview-content"><div class="bd-preview-left"><span>THURSDAY, YOUR WAY</span><h2>Make room for<br>what matters.</h2><div class="bd-mini-days">${['M','T','W','T','F','S','S'].map((d,i)=>`<span class="${i===3?'active':''}">${d}<b>${14+i}</b></span>`).join('')}</div><div class="bd-preview-thought"><span>💭 A little thought</span><p>That idea for the weekend?<br>Give it a little space.</p></div></div><div class="bd-preview-plan"><article class="lavender"><small>9:10 — 10:25 · Work</small><b>Focus on the good stuff ✨</b></article><article class="peach"><small>11:35 — 12:05 · Wellness</small><b>A walk. A breath. A reset. 🌿</b></article><article class="mint"><small>13:15 — 14:40 · Personal</small><b>Build the next little thing ☀️</b></article></div></div></div></section><section class="bd-bedo-intro" aria-labelledby="bedo-intro-title"><span class="bd-kicker">A LITTLE DIFFERENT. STILL YOU.</span><h2 id="bedo-intro-title">Which one are you?</h2><div class="bd-bedo-types"><article><h3>Do you DO BE DO BE DO?</h3><p>Jump in. Figure it out. Keep going.</p></article><span class="bd-bedo-or">or</span><article><h3>Do you BE DO BE DO BE?</h3><p>Think it through. Then make it happen.</p></article></div><p class="bd-bedo-either">Either way, BEDO.</p><p class="bd-bedo-meaning">Brainstorm. Envision. Do. Observe.</p></section><section id="features" class="bd-landing-features"><span class="bd-kicker">SIMPLE ON PURPOSE</span><h2>A place for the whole day.<br>Not just the busy parts.</h2><div>${[['🗓️','See the bigger picture','Start with your calendar. Open a day and shape it with flexible blocks.'],['💭','Let your thoughts breathe','Capture notes in Brainstorm, then give the right ideas a place in your schedule.'],['💼','Every part of your life','Personal, work, study, or something all your own. Categories keep your view focused.'],['↗️','Notice your momentum','Weekly completion and motion help you see progress without the pressure.'],['🪴','Move with real life','Drag a block to a new time. Repeated days stay just as you planned them.'],['🔒','A personal little space','Continue with Google for your own workspace. Demo changes stay in the demo.']].map(([i,t,p])=>`<article><span>${i}</span><h3>${t}</h3><p>${p}</p></article>`).join('')}</div></section><section id="pricing" class="bd-landing-price"><span class="bd-pill">YOURS TO GROW WITH ✨</span><h2>One purchase.<br>Access continuous updates.</h2><p>No tiers. No subscription. Planned launch price: <b>Rp50.000.</b></p><a class="bd-primary" href="/login">Register with Google ↗</a><small>Purchasing is not open yet. Take the demo for a spin.</small></section><section class="bd-google-entry"><h2>Your day, privately yours.</h2><p>Use your Google account to continue.</p><div id="bd-google-slot"></div></section><footer class="bd-landing-footer">bedo. <span>A little space for your day. ☀️</span></footer>`;
-    document.getElementById('root').inert=true;screen.querySelector('#bd-google-slot').append(google,note);screen.querySelector('#bd-demo-cta').addEventListener('click',()=>window.BlockdayDemo.enter());
+    document.getElementById('root').inert=true;screen.querySelector('#bd-google-slot').append(google,note);screen.querySelector('#bd-demo-cta').addEventListener('click',()=>window.BedoDemo.enter());
     if(location.pathname==='/login')screen.querySelector('.bd-google-entry').scrollIntoView();
   }
   const shared=new URLSearchParams(location.search).get('share');
-  if(shared){root.innerHTML='<div class="bd-empty">Loading shared schedule…</div>';fetch((localStorage.getItem('blockday-sync-url')||'https://script.google.com/macros/s/AKfycbyMPgUg0MQlPtHMNBZYAks0_x1VZ2HXb7_iX873gcpg9Vee2LjRIacJHs-ua33OATXH/exec')+'?action=public&token='+encodeURIComponent(shared)).then(r=>r.json()).then(r=>{if(!r.ok)throw new Error(r.error);root.innerHTML=`<main class="bd-shared"><span class="bd-logo">${logo()}</span><h1>${esc(r.data.profile?.title||'Shared bedo')}</h1>${r.data.blocks.map(b=>`<article class="bd-card"><small>${esc(b.date)} · ${clockTime(b.start)}</small><h2>${esc(b.title)}</h2></article>`).join('')}</main>`;}).catch(e=>root.innerHTML=`<div class="bd-empty">${esc(e.message)}</div>`);return;}
+  if(shared){root.innerHTML='<div class="bd-empty">Loading shared schedule…</div>';fetch((localStorage.getItem('bedo-sync-url')||'https://script.google.com/macros/s/AKfycbyMPgUg0MQlPtHMNBZYAks0_x1VZ2HXb7_iX873gcpg9Vee2LjRIacJHs-ua33OATXH/exec')+'?action=public&token='+encodeURIComponent(shared)).then(r=>r.json()).then(r=>{if(!r.ok)throw new Error(r.error);root.innerHTML=`<main class="bd-shared"><span class="bd-logo">${logo()}</span><h1>${esc(r.data.profile?.title||'Shared bedo')}</h1>${r.data.blocks.map(b=>`<article class="bd-card"><small>${esc(b.date)} · ${clockTime(b.start)}</small><h2>${esc(b.title)}</h2></article>`).join('')}</main>`;}).catch(e=>root.innerHTML=`<div class="bd-empty">${esc(e.message)}</div>`);return;}
   function openWorkspace(){
-    blocks=read('blockday-blocks',[]);ideas=read('blockday-ideas',[]);profile=read('blockday-profile',{});categories=profile.categories||['Personal','Work','Wellness','Study'];render();landing();
-    if(!demo&&localStorage.getItem('blockday-auth-session')&&!read('blockday-tour-state',{}).completed&&!document.getElementById('blockday-login'))startTour();
+    blocks=read('bedo-blocks',[]);ideas=read('bedo-ideas',[]);profile=read('bedo-profile',{});categories=profile.categories||['Personal','Work','Wellness','Study'];render();landing();
+    if(!demo&&localStorage.getItem('bedo-auth-session')&&!read('bedo-tour-state',{}).completed&&!document.getElementById('bedo-login'))startTour();
   }
-  function loadingFailed(){root.innerHTML='<main class="bd-shared"><h1>Your device copy is safe.</h1><p>We could not open your saved cloud workspace. Retry before editing so we do not overwrite it with an empty plan.</p><button class="bd-primary" id="bd-retry-workspace">Retry</button><button class="bd-secondary" data-action="export">Download device copy</button><button class="bd-secondary" data-action="signout">Sign out</button></main>';document.getElementById('bd-retry-workspace').onclick=async()=>{if(await window.BlockdaySync.initialize())openWorkspace();else loadingFailed();};}
-  if(!demo&&localStorage.getItem('blockday-auth-session')&&!document.getElementById('blockday-login')){root.innerHTML='<main class="bd-shared"><p role="status">Opening your saved workspace…</p></main>';window.BlockdaySync.ready.then(ok=>ok?openWorkspace():loadingFailed());}
+  function loadingFailed(){root.innerHTML='<main class="bd-shared"><h1>Your device copy is safe.</h1><p>We could not open your saved cloud workspace. Retry before editing so we do not overwrite it with an empty plan.</p><button class="bd-primary" id="bd-retry-workspace">Retry</button><button class="bd-secondary" data-action="export">Download device copy</button><button class="bd-secondary" data-action="signout">Sign out</button></main>';document.getElementById('bd-retry-workspace').onclick=async()=>{if(await window.BedoSync.initialize())openWorkspace();else loadingFailed();};}
+  if(!demo&&localStorage.getItem('bedo-auth-session')&&!document.getElementById('bedo-login')){root.innerHTML='<main class="bd-shared"><p role="status">Opening your saved workspace…</p></main>';window.BedoSync.ready.then(ok=>ok?openWorkspace():loadingFailed());}
   else openWorkspace();
-  addEventListener('blockday-workspace-ready',openWorkspace);
+  addEventListener('bedo-workspace-ready',openWorkspace);
 })();

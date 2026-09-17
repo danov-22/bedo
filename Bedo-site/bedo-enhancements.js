@@ -14,12 +14,12 @@
   const longDate = new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" });
 
   function readBlocks() {
-    try { return JSON.parse(localStorage.getItem("blockday-blocks") || "[]"); } catch (_) { return []; }
+    try { return JSON.parse(localStorage.getItem("bedo-blocks") || "[]"); } catch (_) { return []; }
   }
 
   function calendarHours() {
     try {
-      const saved = JSON.parse(localStorage.getItem("blockday-calendar-hours") || "{}");
+      const saved = JSON.parse(localStorage.getItem("bedo-calendar-hours") || "{}");
       return { start: Number.isInteger(saved.start) ? saved.start : 5, end: Number.isInteger(saved.end) ? saved.end : 24 };
     } catch (_) { return { start: 5, end: 24 }; }
   }
@@ -48,7 +48,7 @@
     blocks.forEach(block => {
       if (!block.date) { block.date = dateKey(new Date()); changed = true; }
     });
-    if (changed) localStorage.setItem("blockday-blocks", JSON.stringify(blocks));
+    if (changed) localStorage.setItem("bedo-blocks", JSON.stringify(blocks));
   }
 
   function activeView() {
@@ -213,11 +213,11 @@
 
   function mountCalendarActions() {
     const heading = document.querySelector('[data-testid="button-add-block"]')?.closest(".page-heading");
-    if (!heading || document.getElementById("blockday-reset-schedule")) return;
+    if (!heading || document.getElementById("bedo-reset-schedule")) return;
     const add = heading.querySelector('[data-testid="button-add-block"]');
     const actions = document.createElement("div");
     actions.className = "calendar-heading-actions";
-    actions.innerHTML = '<button class="button ghost" id="blockday-reset-schedule" type="button">Reset schedule</button>';
+    actions.innerHTML = '<button class="button ghost" id="bedo-reset-schedule" type="button">Reset schedule</button>';
     if (add) actions.appendChild(add);
     heading.appendChild(actions);
   }
@@ -225,13 +225,13 @@
   function showResetDialog() {
     const dialog = document.createElement("div");
     dialog.className = "overlay";
-    dialog.id = "blockday-reset-dialog";
+    dialog.id = "bedo-reset-dialog";
     dialog.innerHTML = '<div class="dialog reset-dialog"><div class="dialog-head"><div><h2>Reset schedule</h2><p>Choose what to clear. This cannot be undone.</p></div><button class="icon-button" data-reset-scope="cancel" aria-label="Close">×</button></div><div class="reset-options"><button class="button" data-reset-scope="day">This day</button><button class="button" data-reset-scope="week">This week</button><button class="button" data-reset-scope="month">This month</button><button class="button danger" data-reset-scope="all">Everything</button></div></div>';
     document.body.appendChild(dialog);
   }
 
   function resetSchedule(scope) {
-    if (scope === "cancel") { document.getElementById("blockday-reset-dialog")?.remove(); return; }
+    if (scope === "cancel") { document.getElementById("bedo-reset-dialog")?.remove(); return; }
     if (!confirm("Clear " + (scope === "all" ? "the entire schedule" : "blocks for this " + scope) + "?")) return;
     const selected = new Date(selectedDate);
     const monday = new Date(selected);
@@ -245,7 +245,7 @@
       if (scope === "week") return date < monday || date >= nextMonday;
       return date.getFullYear() !== selected.getFullYear() || date.getMonth() !== selected.getMonth();
     });
-    localStorage.setItem("blockday-blocks", JSON.stringify(keep));
+    localStorage.setItem("bedo-blocks", JSON.stringify(keep));
     location.reload();
   }
 
@@ -268,7 +268,7 @@
       menu.appendChild(guideTab);
     }
     document.querySelectorAll(".settings-tab").forEach(button => button.classList.toggle("active", button.dataset.testid === "settings-tab-" + settingsTab));
-    let custom = document.getElementById("blockday-settings-panel");
+    let custom = document.getElementById("bedo-settings-panel");
     found.sections.forEach(section => {
       const title = section.querySelector("h2")?.textContent || "";
       const visible = settingsTab === "general" ? title !== "Locked content" : settingsTab === "privacy" ? title === "Locked content" : false;
@@ -276,11 +276,11 @@
     });
     const save = found.content.querySelector('[data-testid="button-save-settings"]');
     if (save) save.hidden = settingsTab !== "general";
-    let hoursPanel = document.getElementById("blockday-hours-settings");
+    let hoursPanel = document.getElementById("bedo-hours-settings");
     if (!hoursPanel) {
       const hours = calendarHours();
       hoursPanel = document.createElement("section");
-      hoursPanel.id = "blockday-hours-settings";
+      hoursPanel.id = "bedo-hours-settings";
       hoursPanel.className = "setting-section";
       hoursPanel.innerHTML = '<h2>Calendar hours</h2><p>Choose the first and last hour shown in day and week views. All 24 hours remain available.</p><div class="hours-settings"><label>Day starts<select class="select" data-hours-start></select></label><label>Day ends<select class="select" data-hours-end></select></label></div>';
       const start = hoursPanel.querySelector("[data-hours-start]");
@@ -293,23 +293,23 @@
     if (settingsTab === "routines") {
       if (!custom) {
         custom = document.createElement("section");
-        custom.id = "blockday-settings-panel";
+        custom.id = "bedo-settings-panel";
         custom.className = "setting-section enhancement-panel";
         found.content.prepend(custom);
       }
       let blocks = [];
-      try { blocks = JSON.parse(localStorage.getItem("blockday-blocks") || "[]"); } catch (_) {}
+      try { blocks = JSON.parse(localStorage.getItem("bedo-blocks") || "[]"); } catch (_) {}
       const routines = blocks.filter(block => block.recurring);
       custom.innerHTML = '<h2>Routines</h2><p>Recurring time blocks appear here.</p><div class="setting-row"><div class="setting-copy"><strong>' + routines.length + ' active routine' + (routines.length === 1 ? "" : "s") + '</strong><span>Create or edit a calendar block and enable “Repeat this as a routine”.</span></div><a class="button" href="/">Open calendar</a></div>';
       custom.hidden = false;
     } else if (custom) custom.hidden = true;
-    let guide = document.getElementById("blockday-guide-panel");
+    let guide = document.getElementById("bedo-guide-panel");
     if (settingsTab === "guide") {
       if (!guide) {
         guide = document.createElement("section");
-        guide.id = "blockday-guide-panel";
+        guide.id = "bedo-guide-panel";
         guide.className = "setting-section guide-panel";
-        guide.innerHTML = '<h2>How to use Blockday</h2><p>A simple guide for planning your time safely.</p><div class="guide-steps"><article><strong>1. Make a time block</strong><span>Open Calendar, choose a day, then tap “Add block.” Give it a clear name, starting time, and length.</span></article><article><strong>2. Use it during your day</strong><span>Tap a block on a phone—or double-click on a computer—to edit or delete it. Check it when you finish.</span></article><article><strong>3. Your work saves on this device</strong><span>Blockday saves in this browser automatically. It keeps working without internet. Do not clear this browser’s site data unless you have a backup.</span></article><article><strong>4. Back up to Google Sheets</strong><span>Create your own Google Sheet and Apps Script Web App. In Settings → General, paste its URL, tap Connect, then Back up now. Future changes retry automatically when you are online.</span></article><article><strong>5. Restore carefully</strong><span>“Restore from Sheets” replaces the Blockday data on this device. Use it when moving to a new phone or recovering a backup.</span></article><article><strong>Privacy tip</strong><span>Your plans can be personal. Use your own device account, keep your Sheet private, and sign out on shared school or family devices.</span></article></div>';
+        guide.innerHTML = '<h2>How to use Bedo</h2><p>A simple guide for planning your time safely.</p><div class="guide-steps"><article><strong>1. Make a time block</strong><span>Open Calendar, choose a day, then tap “Add block.” Give it a clear name, starting time, and length.</span></article><article><strong>2. Use it during your day</strong><span>Tap a block on a phone—or double-click on a computer—to edit or delete it. Check it when you finish.</span></article><article><strong>3. Your work saves on this device</strong><span>Bedo saves in this browser automatically. It keeps working without internet. Do not clear this browser’s site data unless you have a backup.</span></article><article><strong>4. Back up to Google Sheets</strong><span>Create your own Google Sheet and Apps Script Web App. In Settings → General, paste its URL, tap Connect, then Back up now. Future changes retry automatically when you are online.</span></article><article><strong>5. Restore carefully</strong><span>“Restore from Sheets” replaces the Bedo data on this device. Use it when moving to a new phone or recovering a backup.</span></article><article><strong>Privacy tip</strong><span>Your plans can be personal. Use your own device account, keep your Sheet private, and sign out on shared school or family devices.</span></article></div>';
         found.content.prepend(guide);
       }
       guide.hidden = false;
@@ -317,13 +317,13 @@
   }
 
   function toggleMoreMenu(button) {
-    let menu = document.getElementById("blockday-more-menu");
+    let menu = document.getElementById("bedo-more-menu");
     if (menu) { menu.remove(); return; }
     menu = document.createElement("div");
-    menu.id = "blockday-more-menu";
+    menu.id = "bedo-more-menu";
     menu.className = "more-menu";
-    const signedIn = Boolean(localStorage.getItem("blockday-auth-user"));
-    menu.innerHTML = '<a href="/settings">Settings</a>' + (signedIn ? "" : '<a href="/login">Sign in with Google</a>') + '<button type="button" data-export-blockday>Export local backup</button>';
+    const signedIn = Boolean(localStorage.getItem("bedo-auth-user"));
+    menu.innerHTML = '<a href="/settings">Settings</a>' + (signedIn ? "" : '<a href="/login">Sign in with Google</a>') + '<button type="button" data-export-bedo>Export local backup</button>';
     button.parentElement.appendChild(menu);
   }
 
@@ -332,9 +332,9 @@
       if (!mark.querySelector("img")) mark.innerHTML = '<img src="/favicon.svg" alt="">';
     });
     const topbar = document.querySelector(".topbar-left");
-    if (topbar && !document.getElementById("blockday-mobile-brand")) {
+    if (topbar && !document.getElementById("bedo-mobile-brand")) {
       const mark = document.createElement("a");
-      mark.id = "blockday-mobile-brand";
+      mark.id = "bedo-mobile-brand";
       mark.className = "brand-mark mobile-brand";
       mark.href = "/";
       mark.innerHTML = '<img src="/favicon.svg" alt="">';
@@ -405,7 +405,7 @@
       const block = candidates[candidates.length - 1] || blocks[blocks.length - 1];
       if (block) {
         block.date = dateKey(selectedDate);
-        localStorage.setItem("blockday-blocks", JSON.stringify(blocks));
+        localStorage.setItem("bedo-blocks", JSON.stringify(blocks));
       }
     }, 100);
   }
@@ -414,15 +414,15 @@
     const data = {};
     for (let i = 0; i < localStorage.length; i += 1) {
       const key = localStorage.key(i);
-      if (key && key.startsWith("blockday-")) data[key] = localStorage.getItem(key);
+      if (key && key.startsWith("bedo-")) data[key] = localStorage.getItem(key);
     }
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = "blockday-backup-" + dateKey(new Date()) + ".json";
+    link.download = "bedo-backup-" + dateKey(new Date()) + ".json";
     link.click();
     URL.revokeObjectURL(url);
-    document.getElementById("blockday-more-menu")?.remove();
+    document.getElementById("bedo-more-menu")?.remove();
   }
 
   document.addEventListener("click", event => {
@@ -438,7 +438,7 @@
       setTimeout(() => document.querySelector('[data-testid="block-' + CSS.escape(weekBlock.dataset.blockId) + '"]')?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })), 100);
       return;
     }
-    const target = event.target.closest("button, [data-export-blockday]");
+    const target = event.target.closest("button, [data-export-bedo]");
     if (!target) return;
     if (target.dataset.testid === "button-previous-date") { event.preventDefault(); moveDate(-1); }
     if (target.dataset.testid === "button-next-date") { event.preventDefault(); moveDate(1); }
@@ -449,9 +449,9 @@
       applySettingsTab();
     }
     if (target.dataset.testid === "button-more") { event.preventDefault(); toggleMoreMenu(target); }
-    if (target.hasAttribute("data-export-blockday")) exportLocalData();
+    if (target.hasAttribute("data-export-bedo")) exportLocalData();
     if (target.classList.contains("segment")) setTimeout(renderCalendarDate);
-    if (target.id === "blockday-reset-schedule") showResetDialog();
+    if (target.id === "bedo-reset-schedule") showResetDialog();
     if (target.dataset.resetScope) resetSchedule(target.dataset.resetScope);
     if (target.dataset.testid === "button-save-block") stampSavedBlockDate();
   });
@@ -464,11 +464,11 @@
       alert("The end of the day must be later than the start.");
       return;
     }
-    localStorage.setItem("blockday-calendar-hours", JSON.stringify({ start, end }));
+    localStorage.setItem("bedo-calendar-hours", JSON.stringify({ start, end }));
   });
 
   document.addEventListener("click", event => {
-    const menu = document.getElementById("blockday-more-menu");
+    const menu = document.getElementById("bedo-more-menu");
     if (menu && !menu.contains(event.target) && !event.target.closest('[data-testid="button-more"]')) menu.remove();
   });
 

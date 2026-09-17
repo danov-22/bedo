@@ -6,7 +6,7 @@ The current app uses authenticated, account-separated saving to the owner-manage
 
 Required configuration:
 
-- Website: Google OAuth Web client ID in `Blockday-site/auth-config.js`.
+- Website: Google OAuth Web client ID in `Bedo-site/auth-config.js`.
 - Apps Script: the same ID in the `OAUTH_CLIENT_ID` script property.
 - Backend: redeploy this repository's current `Code.gs` as a new version of the existing Web app.
 

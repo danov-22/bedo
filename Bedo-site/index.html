@@ -19,14 +19,15 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <script>
       if ("serviceWorker" in navigator) navigator.serviceWorker.getRegistrations().then(registrations => registrations.forEach(registration => registration.unregister()));
-      if ("caches" in window) caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith("blockday-")).map(key => caches.delete(key))));
+      if ("caches" in window) caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith("bedo-")).map(key => caches.delete(key))));
     </script>
     <script src="https://accounts.google.com/gsi/client" async></script>
+    <script defer src="storage-migration.js"></script>
     <script defer src="auth-config.js"></script>
-    <script defer src="blockday-auth.js"></script>
-    <script defer src="blockday-sync.js"></script>
-    <script defer src="blockday-app.js"></script>
-    <link rel="stylesheet" href="blockday-app.css">
+    <script defer src="bedo-auth.js"></script>
+    <script defer src="bedo-sync.js"></script>
+    <script defer src="bedo-app.js"></script>
+    <link rel="stylesheet" href="bedo-app.css">
   </head>
   <body>
     <div id="root"></div>

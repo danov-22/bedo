@@ -1,12 +1,12 @@
 (function () {
   "use strict";
-  const clientId = String(window.BLOCKDAY_GOOGLE_CLIENT_ID || "").trim();
-  const credentialKey = "blockday-auth-credential";
-  const userKey = "blockday-auth-user";
-  const sessionKey = "blockday-auth-session";
-  const privateKeys = ["blockday-blocks", "blockday-ideas", "blockday-daily-notes", "blockday-routines", "blockday-profile", "blockday-share", "blockday-theme", "blockday-tour-state", "blockday-last-sync", "blockday-sync-pending"];
-  const demoKeys = privateKeys.concat(["blockday-theme", "blockday-reminders", "blockday-locked", "blockday-calendar-hours", "blockday-appscript", "blockday-sync-pending"]);
-  const demoBackupKey = "blockday-demo-backup";
+  const clientId = String(window.BEDO_GOOGLE_CLIENT_ID || "").trim();
+  const credentialKey = "bedo-auth-credential";
+  const userKey = "bedo-auth-user";
+  const sessionKey = "bedo-auth-session";
+  const privateKeys = ["bedo-blocks", "bedo-ideas", "bedo-daily-notes", "bedo-routines", "bedo-profile", "bedo-share", "bedo-theme", "bedo-tour-state", "bedo-last-sync", "bedo-sync-pending"];
+  const demoKeys = privateKeys.concat(["bedo-theme", "bedo-reminders", "bedo-locked", "bedo-calendar-hours", "bedo-appscript", "bedo-sync-pending"]);
+  const demoBackupKey = "bedo-demo-backup";
   const defaultApiUrl = "https://script.google.com/macros/s/AKfycbyMPgUg0MQlPtHMNBZYAks0_x1VZ2HXb7_iX873gcpg9Vee2LjRIacJHs-ua33OATXH/exec";
 
   function decodeCredential(credential) {
@@ -25,11 +25,11 @@
   function switchWorkspace(nextSub) {
     const previous = currentUser();
     const snapshot = {}; privateKeys.forEach(key => { const value = localStorage.getItem(key); if (value !== null) snapshot[key] = value; });
-    if (previous?.sub) privateKeys.forEach(key => { if (snapshot[key] !== undefined) localStorage.setItem("blockday-user-" + previous.sub + "-" + key, snapshot[key]); });
+    if (previous?.sub) privateKeys.forEach(key => { if (snapshot[key] !== undefined) localStorage.setItem("bedo-user-" + previous.sub + "-" + key, snapshot[key]); });
     privateKeys.forEach(key => localStorage.removeItem(key));
     if (nextSub) {
-      const hasSavedWorkspace = privateKeys.some(key => localStorage.getItem("blockday-user-" + nextSub + "-" + key) !== null);
-      privateKeys.forEach(key => { const value = localStorage.getItem("blockday-user-" + nextSub + "-" + key); if (value !== null) localStorage.setItem(key, value); else if (!previous?.sub && !hasSavedWorkspace && snapshot[key] !== undefined && !["blockday-tour-state", "blockday-last-sync", "blockday-sync-pending"].includes(key)) localStorage.setItem(key, snapshot[key]); });
+      const hasSavedWorkspace = privateKeys.some(key => localStorage.getItem("bedo-user-" + nextSub + "-" + key) !== null);
+      privateKeys.forEach(key => { const value = localStorage.getItem("bedo-user-" + nextSub + "-" + key); if (value !== null) localStorage.setItem(key, value); else if (!previous?.sub && !hasSavedWorkspace && snapshot[key] !== undefined && !["bedo-tour-state", "bedo-last-sync", "bedo-sync-pending"].includes(key)) localStorage.setItem(key, snapshot[key]); });
     }
   }
   function restoreDemo() {
@@ -39,15 +39,15 @@
     demoKeys.forEach(key => localStorage.removeItem(key));
     Object.keys(backup).forEach(key => localStorage.setItem(key, backup[key]));
     localStorage.removeItem(demoBackupKey);
-    localStorage.removeItem("blockday-demo-seed-version");
-    localStorage.removeItem("blockday-demo-anchor-date");
+    localStorage.removeItem("bedo-demo-seed-version");
+    localStorage.removeItem("bedo-demo-anchor-date");
   }
   function refreshDemo() {
     if (!localStorage.getItem(demoBackupKey)) return false;
-    let samples; try { samples = JSON.parse(localStorage.getItem("blockday-blocks") || "[]"); } catch (_) { return false; }
+    let samples; try { samples = JSON.parse(localStorage.getItem("bedo-blocks") || "[]"); } catch (_) { return false; }
     if (!Array.isArray(samples)) return false;
     const now = new Date(), today = [now.getFullYear(), now.getMonth() + 1, now.getDate()].join("-");
-    const anchor = localStorage.getItem("blockday-demo-anchor-date") || samples.find(b => b.id === "demo-1")?.date || today;
+    const anchor = localStorage.getItem("bedo-demo-anchor-date") || samples.find(b => b.id === "demo-1")?.date || today;
     const parts = String(anchor).split("-").map(Number);
     const delta = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(parts[0], parts[1] - 1, parts[2])) / 86400000);
     if (Number.isFinite(delta) && delta !== 0) {
@@ -57,15 +57,15 @@
         date.setDate(date.getDate() + delta);
         return { ...block, date: [date.getFullYear(), date.getMonth() + 1, date.getDate()].join("-") };
       });
-      localStorage.setItem("blockday-blocks", JSON.stringify(samples));
+      localStorage.setItem("bedo-blocks", JSON.stringify(samples));
     }
-    localStorage.setItem("blockday-demo-anchor-date", today);
+    localStorage.setItem("bedo-demo-anchor-date", today);
     return Number.isFinite(delta) && delta !== 0;
   }
   function prepareDemo() {
-    if (localStorage.getItem(demoBackupKey) && ["2", "3"].includes(localStorage.getItem("blockday-demo-seed-version"))) {
+    if (localStorage.getItem(demoBackupKey) && ["2", "3"].includes(localStorage.getItem("bedo-demo-seed-version"))) {
       refreshDemo();
-      localStorage.setItem("blockday-demo-seed-version", "3");
+      localStorage.setItem("bedo-demo-seed-version", "3");
       return;
     }
     if (!localStorage.getItem(demoBackupKey)) {
@@ -95,29 +95,29 @@
         : [["Morning stretch", "Wellness", 7.5, .5], ["Focused project time", "Work", 9, 1.5], ["Lunch + reset", "Personal", 12, 1], ["Project follow-up", "Work", 13.5, 1], ["Learning hour", "Study", 15, .75], ["Evening walk", "Wellness", 17.5, .5]];
       plan.forEach(([title, category, start, duration], index) => samples.push({ id: `demo-week-${offset}-${index}`, title, category, start, duration, date, completed: day < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && (index !== 3 || offset % 3 === 0) }));
     }
-    localStorage.setItem("blockday-blocks", JSON.stringify(samples));
-    localStorage.setItem("blockday-demo-seed-version", "3");
-    localStorage.setItem("blockday-demo-anchor-date", key);
-    localStorage.setItem("blockday-profile", JSON.stringify({ name: "Jamie", title: "Jamie’s bedo", theme: "sage" }));
-    localStorage.setItem("blockday-ideas", JSON.stringify([{ id: "demo-note-1", text: "A little idea for the weekend: take the camera out, find a new walking route, and make time for something creative.", created: new Date().toISOString() }]));
-    localStorage.setItem("blockday-calendar-hours", JSON.stringify({ start: 7, end: 18 }));
-    localStorage.setItem("blockday-appscript", "false");
+    localStorage.setItem("bedo-blocks", JSON.stringify(samples));
+    localStorage.setItem("bedo-demo-seed-version", "3");
+    localStorage.setItem("bedo-demo-anchor-date", key);
+    localStorage.setItem("bedo-profile", JSON.stringify({ name: "Jamie", title: "Jamie’s bedo", theme: "sage" }));
+    localStorage.setItem("bedo-ideas", JSON.stringify([{ id: "demo-note-1", text: "A little idea for the weekend: take the camera out, find a new walking route, and make time for something creative.", created: new Date().toISOString() }]));
+    localStorage.setItem("bedo-calendar-hours", JSON.stringify({ start: 7, end: 18 }));
+    localStorage.setItem("bedo-appscript", "false");
   }
   function enterDemo() {
     prepareDemo();
     location.href = "/?demo=1";
   }
-  window.BlockdayDemo = { enter: enterDemo, refresh: refreshDemo, exit: function () { restoreDemo(); location.href = "/"; } };
+  window.BedoDemo = { enter: enterDemo, refresh: refreshDemo, exit: function () { restoreDemo(); location.href = "/"; } };
   function loginScreen(configured) {
-    if (document.getElementById("blockday-login")) return;
+    if (document.getElementById("bedo-login")) return;
     const screen = document.createElement("main");
-    screen.id = "blockday-login";
+    screen.id = "bedo-login";
     screen.className = "login-screen";
-    screen.innerHTML = '<section><div id="blockday-google-button"></div><p class="login-note"></p></section>';
+    screen.innerHTML = '<section><div id="bedo-google-button"></div><p class="login-note"></p></section>';
     document.body.appendChild(screen);
     if (!configured) {
       screen.querySelector(".login-note").textContent = "Google sign-in is not available yet. Explore the demo without an account.";
-      screen.querySelector("#blockday-google-button").innerHTML = '<button class="button primary" type="button" data-google-not-ready>Sign in / Register with Google</button>';
+      screen.querySelector("#bedo-google-button").innerHTML = '<button class="button primary" type="button" data-google-not-ready>Sign in / Register with Google</button>';
       screen.querySelector("[data-google-not-ready]").addEventListener("click", () => { screen.querySelector(".login-note").textContent = "We’re preparing Google sign-in. In the meantime, the demo is yours to explore."; });
     }
   }
@@ -125,7 +125,7 @@
     try {
       const user = decodeCredential(response.credential);
       if (user.aud !== clientId || !user.sub) throw new Error("The Google account response was not issued for bedo.");
-      const apiUrl = localStorage.getItem("blockday-sync-url") || defaultApiUrl;
+      const apiUrl = localStorage.getItem("bedo-sync-url") || defaultApiUrl;
       const authResponse = await fetch(apiUrl, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "authenticate", credential: response.credential }), redirect: "follow" });
       const result = await authResponse.json();
       if (!result.ok || !result.session) throw new Error(result.error || "bedo could not create a secure session.");
@@ -133,7 +133,7 @@
       localStorage.setItem(credentialKey, response.credential);
       localStorage.setItem(userKey, JSON.stringify(user));
       localStorage.setItem(sessionKey, result.session);
-      localStorage.setItem("blockday-welcome-complete", "true");
+      localStorage.setItem("bedo-welcome-complete", "true");
       location.replace("/?app=1");
     } catch (error) {
       const note = document.querySelector(".login-note");
@@ -143,14 +143,14 @@
   function renderGoogleButton() {
     if (!window.google?.accounts?.id) return setTimeout(renderGoogleButton, 100);
     google.accounts.id.initialize({ client_id: clientId, callback: handleCredential, auto_select: false });
-    google.accounts.id.renderButton(document.getElementById("blockday-google-button"), { theme: "outline", size: "large", shape: "pill", text: "continue_with", width: 280 });
+    google.accounts.id.renderButton(document.getElementById("bedo-google-button"), { theme: "outline", size: "large", shape: "pill", text: "continue_with", width: 280 });
   }
   function mountAccount(user) {
-    if (!user || document.getElementById("blockday-account")) return;
+    if (!user || document.getElementById("bedo-account")) return;
     const actions = document.querySelector(".top-actions");
     if (!actions) return;
     const button = document.createElement("button");
-    button.id = "blockday-account";
+    button.id = "bedo-account";
     button.className = "account-button";
     button.title = user.email || "Google account";
     button.innerHTML = user.picture ? '<img alt="" src="' + user.picture.replace(/"/g, "") + '">' : (user.name || "U").slice(0, 1);
@@ -162,13 +162,13 @@
   function signOut() {
     if (!confirm("Sign out of bedo on this device? Your local data will remain here.")) return;
     switchWorkspace(""); window.google?.accounts?.id?.disableAutoSelect();
-    localStorage.removeItem(credentialKey); localStorage.removeItem(userKey); localStorage.removeItem(sessionKey); localStorage.removeItem("blockday-welcome-complete"); location.href = "/";
+    localStorage.removeItem(credentialKey); localStorage.removeItem(userKey); localStorage.removeItem(sessionKey); localStorage.removeItem("bedo-welcome-complete"); location.href = "/";
   }
   function switchAccount() {
     switchWorkspace(""); window.google?.accounts?.id?.disableAutoSelect();
-    localStorage.removeItem(credentialKey); localStorage.removeItem(userKey); localStorage.removeItem(sessionKey); localStorage.removeItem("blockday-welcome-complete"); location.href = "/login";
+    localStorage.removeItem(credentialKey); localStorage.removeItem(userKey); localStorage.removeItem(sessionKey); localStorage.removeItem("bedo-welcome-complete"); location.href = "/login";
   }
-  window.BlockdayAuth = { signOut, switchAccount, currentUser };
+  window.BedoAuth = { signOut, switchAccount, currentUser };
   const params = new URLSearchParams(location.search);
   if (params.has("demo")) prepareDemo();
   if (!params.has("demo") && localStorage.getItem(demoBackupKey)) restoreDemo();
@@ -177,7 +177,7 @@
   if (!params.has("share") && (location.pathname === "/login" || publicLanding || (!user && !params.has("demo")))) {
     loginScreen(Boolean(clientId));
     if (user && location.pathname !== "/login") {
-      document.getElementById("blockday-google-button").innerHTML = '<a class="button primary" href="/?app=1">Open my bedo</a>';
+      document.getElementById("bedo-google-button").innerHTML = '<a class="button primary" href="/?app=1">Open my bedo</a>';
       document.querySelector(".login-note").textContent = "Signed in as " + (user.email || user.name || "your Google account") + ".";
     } else if (clientId) renderGoogleButton();
   }
