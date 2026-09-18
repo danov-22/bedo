@@ -171,7 +171,7 @@
     ['calendar','day','Make time fit your day','Add a block using a start time and Minutes. Tap its title to edit it. You can plan in 5-minute steps rather than whole hours.'],
     ['calendar','day','Move one moment, not your whole week','Drag the ⋮⋮ handle to move a block within its day. Other dates are untouched. Drag near the timeline’s edge to scroll.'],
     ['calendar','week','Repeat only when you want to','New blocks can repeat daily, on weekdays, or weekly for the next 4 weeks. Each occurrence is independent. Week view helps you see how your plan fits together.'],
-    ['brainstorm',null,'Give your thoughts somewhere to land','Capture notes here or with the floating owl on any page. Swipe sideways to switch Note / Block; hold then drag to move it. “Add to schedule” turns a note into a block without removing the note.'],
+    ['brainstorm',null,'Give your thoughts somewhere to land','Capture notes here or with the floating logo on any page. Tap it, then swipe across the input header to switch Quick note / Add block. Hold and drag the logo to move it. “Add to schedule” turns a note into a block without removing the note.'],
     ['insights',null,'See your progress, not just your plans','Check off finished blocks to build your weekly completion and motion stats. Insights follows the week containing the calendar day you selected.'],
     ['settings',null,'Know where everything is saved','Look under “Your saved data” for a confirmed online save time. Offline edits stay on your device and retry when connected. Download a copy any time.'],
     ['settings',null,'Make this space yours','Choose a theme or custom hex color, name your categories, and use account controls here. Replay this tour anytime from “How to use app”.']
@@ -332,22 +332,38 @@
     document.querySelectorAll('.bd-now').forEach(line=>{line.style.top=(now.getHours()+now.getMinutes()/60)*Number(line.parentElement.dataset.hourHeight)+'px';});
   }
   setInterval(tick,1000);
+  function quickInput(initial=read('bedo-quick-action','note')){
+    let mode=initial==='block'?'block':'note';
+    const drafts={};
+    function open(){
+      if(mode==='block')blockDialog();else noteDialog();
+      const layer=document.getElementById('bd-dialog'),panel=layer.querySelector('.bd-dialog'),form=panel.querySelector('form');
+      layer.classList.add('bd-quick-layer');
+      if(drafts[mode])for(const [key,value] of Object.entries(drafts[mode])){const field=form.elements.namedItem(key);if(field)field.value=value;}
+      const header=document.createElement('div');header.className='bd-quick-header';
+      header.innerHTML='<div class="bd-quick-tabs" role="group" aria-label="Quick input type"><button type="button" data-quick-mode="note" aria-pressed="'+(mode==='note')+'">Quick note</button><button type="button" data-quick-mode="block" aria-pressed="'+(mode==='block')+'">Add block</button></div><p class="bd-swipe-hint">↔ Swipe across this header to change input</p>';
+      panel.prepend(header);
+      const change=next=>{if(next===mode)return;drafts[mode]=Object.fromEntries(new FormData(form));mode=next;write('bedo-quick-action',mode);open();document.querySelector('[data-quick-mode="'+mode+'"]').focus({preventScroll:true});};
+      let start=null,swiped=false;
+      header.querySelectorAll('button').forEach(button=>button.addEventListener('click',()=>{if(!swiped)change(button.dataset.quickMode);}));
+      header.addEventListener('pointerdown',e=>{swiped=false;start={x:e.clientX,y:e.clientY,id:e.pointerId};if(!e.target.closest('button'))header.setPointerCapture(e.pointerId);});
+      header.addEventListener('pointerup',e=>{if(!start||start.id!==e.pointerId)return;const dx=e.clientX-start.x,dy=e.clientY-start.y;start=null;if(Math.abs(dx)>24&&Math.abs(dy)<24){swiped=true;change(mode==='note'?'block':'note');}});
+      header.addEventListener('pointercancel',()=>{start=null;});
+      header.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();change(mode==='note'?'block':'note');}});
+    }
+    open();
+  }
   function mountNoteButton(){
     if(document.getElementById('bd-fab'))return;
-    const fab=document.createElement('button');fab.id='bd-fab';fab.className='bd-fab bd-owl';document.body.appendChild(fab);
-    let mode=read('bedo-quick-action','note')==='block'?'block':'note';
-    const update=()=>{fab.dataset.mode=mode;fab.setAttribute('aria-label',(mode==='note'?'Capture a quick note':'Add a time block')+'. Swipe sideways or use arrow keys to switch. Hold and drag to move.');fab.title='Swipe to switch · hold and drag to move';fab.innerHTML='<span class="bd-owl-face" aria-hidden="true">'+logo()+'</span><span class="bd-owl-feet" aria-hidden="true"></span><span class="bd-owl-label">'+(mode==='note'?'Note':'＋ Block')+' ⇄</span>';};
-    const toggle=()=>{mode=mode==='note'?'block':'note';write('bedo-quick-action',mode);update();};
-    update();
+    const fab=document.createElement('button');fab.id='bd-fab';fab.className='bd-fab bd-quick-logo';fab.setAttribute('aria-label','Open Quick note or Add block. Hold and drag to move.');fab.title='Quick input · hold and drag to move';fab.innerHTML=logo();document.body.appendChild(fab);
     const place=(x,y)=>{fab.style.right='auto';fab.style.bottom='auto';fab.style.left=Math.max(8,Math.min(innerWidth-fab.offsetWidth-8,x))+'px';fab.style.top=Math.max(72,Math.min(innerHeight-fab.offsetHeight-(innerWidth<=760?86:8),y))+'px';};
     const position=read('bedo-quick-note-position',null);if(position)place(position.x,position.y);
     let pointer=null,suppress=false;
-    fab.addEventListener('pointerdown',e=>{if(e.button!==0)return;const rect=fab.getBoundingClientRect();pointer={id:e.pointerId,x:e.clientX,y:e.clientY,left:rect.left,top:rect.top,time:performance.now(),moving:false};suppress=false;fab.setPointerCapture(e.pointerId);});
-    fab.addEventListener('pointermove',e=>{if(!pointer||pointer.id!==e.pointerId)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(Math.hypot(dx,dy)>6&&(performance.now()-pointer.time>=300||Math.abs(dy)>22))pointer.moving=true;if(pointer.moving){suppress=true;place(pointer.left+dx,pointer.top+dy);}});
-    fab.addEventListener('pointerup',e=>{if(!pointer||pointer.id!==e.pointerId)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(pointer.moving){write('bedo-quick-note-position',{x:fab.offsetLeft,y:fab.offsetTop});}else if(Math.abs(dx)>=24&&Math.abs(dy)<22){suppress=true;toggle();}else if(Math.hypot(dx,dy)>6)suppress=true;pointer=null;});
+    fab.addEventListener('pointerdown',e=>{if(e.button!==0)return;const rect=fab.getBoundingClientRect();pointer={id:e.pointerId,x:e.clientX,y:e.clientY,left:rect.left,top:rect.top,time:performance.now()};suppress=false;fab.setPointerCapture(e.pointerId);});
+    fab.addEventListener('pointermove',e=>{if(!pointer||pointer.id!==e.pointerId)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(Math.hypot(dx,dy)>6){suppress=true;if(performance.now()-pointer.time>=300||Math.abs(dy)>22)place(pointer.left+dx,pointer.top+dy);}});
+    fab.addEventListener('pointerup',()=>{if(suppress)write('bedo-quick-note-position',{x:fab.offsetLeft,y:fab.offsetTop});pointer=null;});
     fab.addEventListener('pointercancel',()=>{pointer=null;suppress=true;});
-    fab.addEventListener('click',()=>{if(suppress){suppress=false;return;}if(mode==='block')blockDialog();else noteDialog();});
-    fab.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();toggle();}});
+    fab.addEventListener('click',()=>{if(suppress){suppress=false;return;}quickInput();});
     addEventListener('resize',()=>{if(fab.style.left)place(fab.offsetLeft,fab.offsetTop);});
   }
   function landing() {

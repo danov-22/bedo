@@ -4,8 +4,8 @@
   "description": "A calm, offline-first personal time-block planner.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#fbfaf6",
-  "theme_color": "#2c8170",
+  "background_color": "#ffffff",
+  "theme_color": "#007b38",
   "icons": [
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]

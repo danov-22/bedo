@@ -92,9 +92,11 @@ const base = process.env.BEDO_TEST_BASE || 'http://localhost:8765';
         for(const palette of ['sage','ocean','berry','neutral']){
           await page.locator(`[data-palette=${palette}]`).click();
           const colors=await page.evaluate(()=>({bg:getComputedStyle(document.body).backgroundColor,card:getComputedStyle(document.querySelector('.bd-card')).backgroundColor,logo:getComputedStyle(document.querySelector('.bd-logo-svg g[fill]')).fill,logoBg:getComputedStyle(document.querySelector('.bd-logo-svg>rect')).fill}));
-          assert.notEqual(colors.bg,colors.card,'background and cards have distinct colors');
+          if(mode==='dark')assert.notEqual(colors.bg,colors.card,'dark background and cards have distinct colors');
+          else assert.equal(colors.card,'rgb(255, 255, 255)','light cards are white');
           assert.notEqual(colors.logo,colors.logoBg,'logo lettering contrasts with tile');
-          if(palette==='neutral'){assert.equal(colors.logoBg,mode==='dark'?'rgb(98, 104, 116)':'rgb(139, 144, 155)','neutral logo is grey, not green');assert.equal(colors.logo,'rgb(255, 255, 255)','neutral logo lettering remains white');}
+          if(mode==='light')assert.equal(colors.bg,'rgb(255, 255, 255)','preset surfaces are white');
+          if(palette==='neutral'){assert.equal(colors.logoBg,mode==='dark'?'rgb(98, 104, 116)':'rgb(116, 123, 135)','neutral logo is grey, not green');assert.equal(colors.logo,'rgb(255, 255, 255)','neutral logo lettering remains white');}
           if(mode==='dark') {
             assert.equal(colors.logo,'rgb(255, 255, 255)','dark-mode face is bright white');
             assert.equal(await page.locator('.bd-top .bd-logo-svg path').count(),3,'same supplied logo is used in dark mode');
@@ -106,7 +108,7 @@ const base = process.env.BEDO_TEST_BASE || 'http://localhost:8765';
           await page.screenshot({path:path.join(process.env.TEMP,`bedo-theme-${name}-${mode}-${palette}.png`)});
         }
       }
-      assert.equal(new Set(surfaces).size,8,'all palettes have distinct light/dark backgrounds');
+      assert.equal(new Set(surfaces).size,5,'white light surfaces and four dark palettes');
       assert.equal(await page.locator('.bd-brand .bd-logo-svg').count(),1,'desktop supplied logo rendered');
       assert.equal(await page.locator('.bd-logo-svg').first().getAttribute('viewBox'),'0 0 1500 1499.999933','supplied SVG proportions preserved');
       const customBackgrounds=[];

@@ -1,4 +1,5 @@
 /* System fonts deliberately use Apple's native stack where available. */
+/* White surfaces, vivid preset accents; custom colors keep their own tinting. */
 /* Every surface uses palette tokens; category colors remain distinguishable. */
 /* The supplied favicon SVG is the sole logo geometry in every mode. */
 body.bd-landing-open{overflow:hidden;height:100dvh}body.bd-landing-open #root{display:none}body.bd-landing-open #bd-fab{display:none}.bd-landing{overscroll-behavior-y:contain}
@@ -56,14 +57,34 @@ body.bd-landing-open{overflow:hidden;height:100dvh}body.bd-landing-open #root{di
 [hidden]{display:none!important}
 .bd-display-name{font-size:16px;font-weight:650;line-height:1.3;margin-left:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bd-top.bd-calendar-header>.bd-logo{display:block;width:32px;height:32px;flex:none}
-#bd-fab.bd-owl{width:64px;height:76px;isolation:isolate;background:var(--logo-bg);color:var(--logo-ink);border-radius:27px 27px 22px 22px;overflow:visible;touch-action:none}
-.bd-owl:before,.bd-owl:after{content:'';position:absolute;top:-5px;width:22px;height:24px;background:var(--logo-bg);z-index:-1;border-radius:4px}
-.bd-owl:before{left:4px;transform:rotate(-18deg)}.bd-owl:after{right:4px;transform:rotate(18deg)}
-.bd-owl-face{display:block;width:58px;height:58px;margin:0 auto;pointer-events:none}
-.bd-owl-face .bd-logo-svg{width:100%;height:100%}
-.bd-owl-face .bd-logo-svg>g:last-child path{transform-box:fill-box;transform-origin:center;animation:bedo-blink 8s infinite}
-.bd-owl-feet{position:absolute;bottom:-3px;left:15px;width:12px;height:6px;border-radius:5px;background:var(--logo-ink);box-shadow:22px 0 var(--logo-ink);pointer-events:none}
-.bd-owl-label{display:block;font-size:10px;font-weight:700;line-height:14px;pointer-events:none}
+#bd-fab.bd-quick-logo{width:58px;height:58px;padding:0;background:transparent;border-radius:14px;touch-action:none}
+.bd-quick-logo .bd-logo-svg{pointer-events:none}
+.bd-quick-logo .bd-logo-svg>g:last-child path{transform-box:fill-box;transform-origin:center;animation:bedo-blink 8s infinite}
 @keyframes bedo-blink{0%,92%,96%,100%{transform:scaleY(1)}94%{transform:scaleY(.08)}}
-@media(prefers-reduced-motion:reduce){.bd-owl-face .bd-logo-svg>g:last-child path{animation:none}}
+@media(prefers-reduced-motion:reduce){.bd-quick-logo .bd-logo-svg>g:last-child path{animation:none}}
+.bd-quick-header{position:sticky;top:0;z-index:2;background:var(--card);padding:4px 24px 8px 0;margin-bottom:20px;touch-action:pan-y}
+.bd-quick-layer .bd-dialog-close{z-index:4}
+.bd-quick-tabs{display:flex;gap:6px}
+.bd-quick-tabs button{flex:1;min-height:44px;font-size:13px;font-weight:650;border:1px solid var(--line);border-radius:12px}
+.bd-quick-tabs button[aria-pressed=true]{background:var(--primary);color:white;border-color:var(--primary)}
+.bd-swipe-hint{font-size:11px;color:var(--muted);line-height:1.5;margin:10px 0 0}
+:root[data-mode=dark] .bd-quick-tabs button[aria-pressed=true]{color:var(--bg)}
+@media(max-width:760px){.bd-quick-layer{place-items:end center}.bd-quick-layer .bd-dialog{max-height:calc(100dvh - 30px);padding:22px;width:100%}}
 @media(max-width:760px){.bd-top.bd-calendar-header{flex-wrap:wrap;height:auto;min-height:64px;padding-top:10px;padding-bottom:10px;row-gap:8px}.bd-calendar-header .bd-display-name{max-width:100px;font-size:15px}.bd-calendar-header .bd-top-actions{gap:8px}.bd-calendar-header .bd-icon{width:32px;min-height:36px}.bd-calendar-header .bd-save-badge:empty{display:none}}
+/* Vibrant preset system: color is an accent, not a wash over every surface. */
+:root:not([data-palette=custom]){--bg:#fff;--card:#fff;--text:#202522;--muted:#59635e;--line:#d6ddd9;--soft:#eef3f0;--shadow:0 12px 35px #182d2110;--primary:#007b38;--logo-bg:#007b38;--logo-ink:#fff}
+:root[data-palette=ocean]{--primary:#165bdf;--logo-bg:#165bdf;--soft:#eef3ff}
+:root[data-palette=berry]{--primary:#cd253a;--logo-bg:#cd253a;--soft:#fff0f2}
+:root[data-palette=neutral]{--primary:#4b5059;--logo-bg:#747b87;--soft:#eceef1;--line:#9299a4;--muted:#515762}
+:root[data-mode=dark]:not([data-palette=custom]){--bg:#101713;--card:#18221c;--text:#f6fff8;--muted:#bacbc0;--line:#3e5145;--primary:#39e888;--logo-bg:#00873e;--soft:#22382b;--shadow:0 12px 35px #0003}
+:root[data-mode=dark][data-palette=ocean]{--bg:#101621;--card:#192333;--primary:#6aa5ff;--logo-bg:#165bdf;--soft:#243956;--line:#41536d}
+:root[data-mode=dark][data-palette=berry]{--bg:#1d1014;--card:#2c1920;--primary:#ff6b81;--logo-bg:#cd253a;--soft:#482531;--line:#68404e}
+:root[data-mode=dark][data-palette=neutral]{--bg:#14161b;--card:#22252d;--primary:#d8dce5;--logo-bg:#626874;--soft:#333843;--line:#747d90}
+:root[data-palette=neutral] :is(.bd-card,.bd-month,.bd-timeline,.bd-secondary,.bd-settings-menu button,.bd-quick-tabs button){border-width:2px}
+.sage{background:#007b38}.ocean{background:#165bdf}.berry{background:#cd253a}.neutral{background:#fff;box-shadow:inset 0 0 0 2px #747b87}
+.mint{background:#00843d;color:#fff}.lavender{background:#7042d4;color:#fff}.peach{background:#b94c00;color:#fff}.blue{background:#165bdf;color:#fff}
+:root[data-mode=dark] :is(.mint,.lavender,.peach,.blue){color:#fff}
+:root[data-mode=dark] .mint{background:#007938}
+:root[data-mode=dark] .lavender{background:#6537c6}
+:root[data-mode=dark] .peach{background:#a94300}
+:root[data-mode=dark] .blue{background:#1555cd}
