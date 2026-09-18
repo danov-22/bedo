@@ -2,7 +2,7 @@
 (function(){
 'use strict';
 if(new URLSearchParams(location.search).has('demo'))return;
-const url=localStorage.getItem('bedo-sync-url')||'https://script.google.com/macros/s/AKfycbyMPgUg0MQlPtHMNBZYAks0_x1VZ2HXb7_iX873gcpg9Vee2LjRIacJHs-ua33OATXH/exec';
+const url=localStorage.getItem('bedo-sync-url')||window.BEDO_API_URL;
 const read=(k,f)=>{try{return JSON.parse(localStorage.getItem(k))??f;}catch(_){return f;}};
 const keys={blocks:'bedo-blocks',ideas:'bedo-ideas',dailyNotes:'bedo-daily-notes',routines:'bedo-routines'};
 let status={state:'local',message:'Saved on this device. Sign in with Google for cloud saving.'},initialized=false,busy=false,timer;

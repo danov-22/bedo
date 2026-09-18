@@ -50,3 +50,20 @@ body.bd-landing-open{overflow:hidden;height:100dvh}body.bd-landing-open #root{di
 .bd-rundown-actions{display:flex;flex-wrap:wrap;gap:10px}
 #bd-rundown{min-height:180px;white-space:pre-wrap;font-size:13px}
 @media(max-height:500px){#bd-dialog.bd-tour-layer .bd-dialog{max-height:58dvh}.bd-tour-layer .bd-dialog>p{font-size:12px}}
+.bd-settings-menu{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 24px}
+.bd-settings-menu button{padding:11px 15px;min-height:44px;border:1px solid var(--line);border-radius:14px;background:var(--card);font-size:12px}
+.bd-settings-menu button[aria-current=page]{background:var(--soft);border-color:var(--primary);color:var(--primary);font-weight:650}
+[hidden]{display:none!important}
+.bd-display-name{font-size:16px;font-weight:650;line-height:1.3;margin-left:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bd-top.bd-calendar-header>.bd-logo{display:block;width:32px;height:32px;flex:none}
+#bd-fab.bd-owl{width:64px;height:76px;isolation:isolate;background:var(--logo-bg);color:var(--logo-ink);border-radius:27px 27px 22px 22px;overflow:visible;touch-action:none}
+.bd-owl:before,.bd-owl:after{content:'';position:absolute;top:-5px;width:22px;height:24px;background:var(--logo-bg);z-index:-1;border-radius:4px}
+.bd-owl:before{left:4px;transform:rotate(-18deg)}.bd-owl:after{right:4px;transform:rotate(18deg)}
+.bd-owl-face{display:block;width:58px;height:58px;margin:0 auto;pointer-events:none}
+.bd-owl-face .bd-logo-svg{width:100%;height:100%}
+.bd-owl-face .bd-logo-svg>g:last-child path{transform-box:fill-box;transform-origin:center;animation:bedo-blink 8s infinite}
+.bd-owl-feet{position:absolute;bottom:-3px;left:15px;width:12px;height:6px;border-radius:5px;background:var(--logo-ink);box-shadow:22px 0 var(--logo-ink);pointer-events:none}
+.bd-owl-label{display:block;font-size:10px;font-weight:700;line-height:14px;pointer-events:none}
+@keyframes bedo-blink{0%,92%,96%,100%{transform:scaleY(1)}94%{transform:scaleY(.08)}}
+@media(prefers-reduced-motion:reduce){.bd-owl-face .bd-logo-svg>g:last-child path{animation:none}}
+@media(max-width:760px){.bd-top.bd-calendar-header{flex-wrap:wrap;height:auto;min-height:64px;padding-top:10px;padding-bottom:10px;row-gap:8px}.bd-calendar-header .bd-display-name{max-width:100px;font-size:15px}.bd-calendar-header .bd-top-actions{gap:8px}.bd-calendar-header .bd-icon{width:32px;min-height:36px}.bd-calendar-header .bd-save-badge:empty{display:none}}

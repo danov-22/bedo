@@ -22,6 +22,7 @@
   let categories = profile.categories || ['Personal','Work','Wellness','Study'];
   let page = ['brainstorm','insights','settings'].includes(location.pathname.slice(1)) ? location.pathname.slice(1) : 'calendar';
   let view = 'month', selected = new Date(), month = new Date(), filter = 'All', drag = null;
+  let settingsSection='profile';
   const category = block => block.category || (block.color === 'blue' ? 'Work' : block.color === 'gold' ? 'Wellness' : 'Personal');
   const tint = cat => ['mint','lavender','peach','blue'][Math.max(0,categories.indexOf(cat))%4];
   const visible = day => blocks.filter(b => b.date === dateKey(day) && (filter==='All' || category(b)===filter));
@@ -84,10 +85,11 @@
     setTheme();
     root.innerHTML = `<div class="bd-shell"><aside class="bd-sidebar"><a class="bd-brand" href="/"><span class="bd-logo">${logo()}</span>bedo<span class="bd-brand-dot">.</span></a><p>A little space for your day.</p><nav>${nav()}</nav><div class="bd-sidebar-note">Make room for life.<br>Not just your to-do list. ☀️</div></aside><main class="bd-main"><header class="bd-top"><a class="bd-logo" href="/" aria-label="bedo home">${logo()}</a><div class="bd-top-actions">${demo?'<button class="bd-exit" data-action="exit">← Exit demo</button>':''}<span id="bd-save-badge" class="bd-save-badge"></span><time id="bd-clock"></time><button class="bd-icon" data-action="theme" aria-label="Toggle light or dark theme">${read('bedo-theme','light')==='dark'?'☀':'☾'}</button></div></header><div class="bd-content">${page==='calendar'?calendar():page==='brainstorm'?brainstorm():page==='insights'?insights():settings()}</div></main><nav class="bd-mobile-nav">${nav()}</nav></div>`;
     if(page==='calendar'){
-      const heading=root.querySelector('.bd-heading>div');
-      if(profile.name?.trim()){const greeting=document.createElement('p');greeting.className='bd-greeting';greeting.textContent='Hello, '+profile.name.trim()+'.';heading.prepend(greeting);}
-      const share=document.createElement('button');share.className='bd-secondary bd-share-day';share.dataset.action='share-day';share.textContent='Share a day ↗';root.querySelector('.bd-toolbar').after(share);
+      const header=root.querySelector('.bd-top');header.classList.add('bd-calendar-header');
+      if(profile.name?.trim()){const name=document.createElement('span');name.className='bd-display-name';name.textContent=profile.name.trim();name.title=profile.name.trim();header.querySelector('.bd-logo').after(name);}
+      const share=document.createElement('button');share.className='bd-secondary bd-share-day';share.dataset.action='share-day';share.textContent='Share a day ↗';root.querySelector('.bd-content').append(share);
     }
+    if(page==='settings')organizeSettings();
     tick(); mountNoteButton(); updateSavingStatus();
     requestAnimationFrame(() => document.querySelectorAll('.bd-timeline').forEach(timeline => {
       const track=timeline.querySelector('.bd-day-track');
@@ -97,6 +99,19 @@
     }));
   }
   function filters() { return `<div class="bd-filters" aria-label="Filter blocks by category">${['All',...categories].map(c=>`<button data-filter="${esc(c)}" class="${filter===c?'active':''}">${c!=='All'?`<i class="${tint(c)}"></i>`:''}${esc(c)}</button>`).join('')}</div>`; }
+  function organizeSettings(){
+    const content=root.querySelector('.bd-content'),form=document.getElementById('bd-settings');
+    const menu=document.createElement('nav');menu.className='bd-settings-menu';menu.setAttribute('aria-label','Settings sections');
+    const sections=[['profile','Profile'],['appearance','Appearance'],['account','Your account'],['data','Saved data'],['guide','How to use']];if(!demo)sections.push(['sharing','Sharing']);
+    menu.innerHTML=sections.map(([id,label])=>`<button data-settings-section="${id}" aria-current="${settingsSection===id?'page':'false'}">${label}</button>`).join('');content.querySelector('.bd-heading').after(menu);
+    const personal=document.createElement('div'),appearance=document.createElement('div');
+    personal.id='bd-profile-panel';appearance.id='bd-appearance-panel';
+    Array.from(form.children).forEach(el=>{if(el.classList.contains('bd-primary'))return;(el.matches('label')?personal:appearance).append(el);});
+    form.prepend(personal,appearance);personal.hidden=settingsSection!=='profile';appearance.hidden=settingsSection!=='appearance';form.hidden=!['profile','appearance'].includes(settingsSection);
+    const cards={'account':'bd-account-card','data':'bd-saving-card','guide':'bd-app-guide'};
+    Object.entries(cards).forEach(([section,id])=>{document.getElementById(id).hidden=settingsSection!==section;});
+    const sharing=Array.from(content.children).find(el=>el.querySelector('[data-action=share]'));if(sharing){sharing.id='bd-sharing-card';sharing.hidden=settingsSection!=='sharing';}
+  }
   function calendar() {
     const title = view==='month' ? 'A little space for everything.' : dateLabel(selected,{weekday:'long',month:'long',day:'numeric'});
     return `<section class="bd-heading"><div><span class="bd-kicker">YOUR TIME, YOUR PACE ✨</span><h1>${title}</h1><p>${view==='month'?'Pick a day. Make room for what matters.':'A flexible plan. Not a perfect one.'}</p></div><button class="bd-primary" data-action="add">＋ Add block</button></section><div class="bd-toolbar"><div class="bd-segments">${['month','day','week'].map(v=>`<button data-view="${v}" class="${view===v?'active':''}">${v==='month'?'Calendar':v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div><div class="bd-date-nav"><button data-action="prev" aria-label="Previous period">‹</button><strong>${view==='month'?dateLabel(month,{month:'long',year:'numeric'}):view==='week'?'Week of '+dateLabel(monday(),{month:'short',day:'numeric'}):dateLabel(selected,{month:'short',day:'numeric'})}</strong><button data-action="next" aria-label="Next period">›</button><button data-action="today">Today</button></div></div>${filters()}${view==='month'?monthCalendar():view==='week'?weekCalendar():dayCalendar(selected)}<p class="bd-help">${view==='month'?'Tap any date to explore and plan your day.':'Drag the ⋮⋮ handle to move a block. Changes apply to this occurrence only.'}</p>`;
@@ -137,19 +152,7 @@
     return `<section class="bd-heading"><div><span class="bd-kicker">PROGRESS, NOT PRESSURE 🌻</span><h1>Your week, in motion.</h1><p>${dateLabel(start,{month:'short',day:'numeric'})} – ${dateLabel(days[6],{month:'short',day:'numeric'})}. Small steps add up.</p></div></section><div class="bd-stats"><article><span>Completed blocks</span><strong>${done.length}<small> / ${week.length}</small></strong></article><article><span>Weekly completion</span><strong>${week.length?Math.round(done.length/week.length*100):0}%</strong></article><article><span>Completed time</span><strong>${Math.round(hours*100)/100}<small>h</small></strong></article></div><section class="bd-card"><h2>Weekly motion</h2><p>Completed blocks across your week.</p><div class="bd-bars">${days.map(d=>{const all=blocks.filter(b=>b.date===dateKey(d)),complete=all.filter(b=>b.completed).length;return `<div><small>${complete}/${all.length}</small><div class="bd-bar" style="height:${all.length?Math.max(5,complete/all.length*140):5}px"></div><span>${dateLabel(d,{weekday:'short'})}</span></div>`;}).join('')}</div></section><section class="bd-card"><h2>Space for different parts of life</h2>${categories.map(c=>`<div class="bd-category-stat"><span><i class="${tint(c)}"></i>${esc(c)}</span><strong>${week.filter(b=>category(b)===c&&b.completed).length} completed</strong></div>`).join('')}</section>`;
   }
   function appGuide() {
-    const tips = [
-      ['Send a day as a rundown', 'Choose Share a day in Timeblock, pick a date, then edit or copy the text. Open WhatsApp to choose a recipient yourself. This includes every category on that date, but never your Brainstorm notes. Your display name appears above the calendar and in this rundown.'],
-      ['Move just this block', 'In Day or Week view, drag the ⋮⋮ handle to change a block’s time in 5-minute steps. You can drag near the timeline’s edge to scroll. Other dates, including repeated occurrences, stay untouched.'],
-      ['Give a block the time it needs', 'Tap the block’s title to edit its start time and Minutes. Blocks can be short or long, but must end by midnight on the chosen day.'],
-      ['Repeat without locking your week', 'When adding a new block, choose Daily, Weekdays, or Weekly in Repeat. This creates the next 4 weeks of separate occurrences; editing or deleting one does not change the others.'],
-      ['See one part of life at a time', 'Use the category chips above the calendar to filter your blocks. Add your own comma-separated categories in Settings. “All” brings everything back; filtering never deletes a block.'],
-      ['Turn a thought into a plan', 'In Brainstorm, choose “Add to schedule” on a note. It pre-fills a new block without removing the original note. The floating pencil captures notes from any page—drag it to a comfortable spot.'],
-      ['Notice your weekly motion', 'Insights follows the week containing your selected calendar day. Its completed time counts finished blocks, not just planned hours. Check off blocks to see your progress build.'],
-      ['Celebrate a little win', 'A 🎯 appears when every block on a day is checked off. Past days with unfinished blocks show 🎗️; today and future unfinished days stay unmarked. It counts every category, even while you are viewing just one. Empty days do not get a marker.'],
-      ['Choose colors of your own', 'In Settings, enter a custom hex color (such as #7C5CE7), or use the color picker, then choose “Use custom color”. Backgrounds follow your color in both light and dark mode. Pick a preset to switch back.'],
-      ['Share a view, not your workspace', 'After signing in, “Share schedule” publishes a read-only snapshot. Your private Brainstorm notes stay private. Later edits do not update that snapshot; publish again to share a newer view, or disable its link.']
-    ];
-    return '<section class="bd-card bd-guide" id="bd-app-guide"><h2>How to use app</h2><button class="bd-secondary" data-action="tour">Replay app tour</button><p>A few little things that make this space more useful. Open a tip to explore.</p>'+tips.map(([title,body])=>`<details><summary>${esc(title)}</summary><p>${esc(body)}</p></details>`).join('')+'</section>';
+    return '<section class="bd-card bd-guide" id="bd-app-guide"><h2>How to use app</h2><p>A short, guided walk through planning, moving blocks, Brainstorm, Insights, and saving. It opens each feature and shows you where to look. Nothing in your schedule is changed.</p><button class="bd-primary" data-action="tour">Start app tour →</button><p>You can replay it here whenever you like.</p></section>';
   }
   function savingCard() {
     return `<section class="bd-card" id="bd-saving-card"><h2>Your saved data</h2><p id="bd-save-status" role="status"></p><p id="bd-save-time"></p><p>Schedules and Brainstorm notes save on this device first. After Google sign-in, they back up to bedo’s account-separated Google Sheet. This does not create a Sheet in your own Google Drive.</p><button class="bd-secondary" data-action="sync-now">Save online now</button><button class="bd-secondary" data-action="export">Download my data</button><button class="bd-secondary" data-action="recovery">Download previous device copy</button></section>`;
@@ -168,13 +171,13 @@
     ['calendar','day','Make time fit your day','Add a block using a start time and Minutes. Tap its title to edit it. You can plan in 5-minute steps rather than whole hours.'],
     ['calendar','day','Move one moment, not your whole week','Drag the ⋮⋮ handle to move a block within its day. Other dates are untouched. Drag near the timeline’s edge to scroll.'],
     ['calendar','week','Repeat only when you want to','New blocks can repeat daily, on weekdays, or weekly for the next 4 weeks. Each occurrence is independent. Week view helps you see how your plan fits together.'],
-    ['brainstorm',null,'Give your thoughts somewhere to land','Capture notes here or with the floating pencil on any page. Drag the pencil wherever it feels comfortable. “Add to schedule” turns a note into a block without removing the note.'],
+    ['brainstorm',null,'Give your thoughts somewhere to land','Capture notes here or with the floating owl on any page. Swipe sideways to switch Note / Block; hold then drag to move it. “Add to schedule” turns a note into a block without removing the note.'],
     ['insights',null,'See your progress, not just your plans','Check off finished blocks to build your weekly completion and motion stats. Insights follows the week containing the calendar day you selected.'],
     ['settings',null,'Know where everything is saved','Look under “Your saved data” for a confirmed online save time. Offline edits stay on your device and retry when connected. Download a copy any time.'],
     ['settings',null,'Make this space yours','Choose a theme or custom hex color, name your categories, and use account controls here. Replay this tour anytime from “How to use app”.']
   ];
   function showTour(){
-    const [nextPage,nextView,title,body]=tourSteps[tourIndex];page=nextPage;if(nextView)view=nextView;render();
+    const [nextPage,nextView,title,body]=tourSteps[tourIndex];page=nextPage;if(nextView)view=nextView;if(page==='settings')settingsSection=tourIndex===7?'data':'appearance';render();
     window.scrollTo({top:0});
     dialog(`<span class="bd-kicker">A LITTLE WALKTHROUGH · ${tourIndex+1} / ${tourSteps.length}</span><h2 id="bd-tour-title">${title}</h2><p>${body}</p><div class="bd-tour-progress" aria-hidden="true">${tourSteps.map((_,i)=>`<i class="${i===tourIndex?'active':''}"></i>`).join('')}</div><div class="bd-tour-actions"><button class="bd-secondary" data-action="tour-skip">Skip tour</button>${tourIndex?'<button class="bd-secondary" data-action="tour-back">Back</button>':''}<button class="bd-primary" data-action="tour-next">${tourIndex===tourSteps.length-1?'Finish':'Next'}</button></div>`);
     const layer=document.getElementById('bd-dialog');layer.classList.add('bd-tour-layer');layer.querySelector('[role=dialog]').setAttribute('aria-labelledby','bd-tour-title');layer.querySelector('[data-action=tour-next]').focus({preventScroll:true});
@@ -191,11 +194,11 @@
     const rect=target.getBoundingClientRect(),sheet=layer.querySelector('.bd-dialog').getBoundingClientRect();
     const frame=document.createElement('div');frame.className='bd-tour-frame';frame.setAttribute('aria-hidden','true');
     layer.querySelector('.bd-tour-frame')?.remove();layer.prepend(frame);
-    Object.assign(frame.style,{left:rect.left+'px',top:Math.max(top,rect.top)+'px',width:rect.width+'px',height:Math.max(0,Math.min(rect.bottom,sheet.top-14)-Math.max(top,rect.top))+'px'});
+    Object.assign(frame.style,{left:Math.max(4,rect.left-6)+'px',top:Math.max(top-6,rect.top-6)+'px',width:Math.min(innerWidth-8,rect.width+12)+'px',height:Math.max(0,Math.min(rect.bottom+6,sheet.top-14)-Math.max(top-6,rect.top-6))+'px'});
   }
   addEventListener('resize',()=>{if(tourActive)positionTour();});
-  function startTour(){tourOrigin={page,view};tourIndex=0;tourActive=true;showTour();}
-  function endTour(skipped=false){tourActive=false;write('bedo-tour-state',{version:1,completed:true,skipped});document.getElementById('bd-dialog')?.remove();if(tourOrigin){page=tourOrigin.page;view=tourOrigin.view;}render();document.querySelector('[data-action=tour]')?.focus();}
+  function startTour(){tourOrigin={page,view,settingsSection};tourIndex=0;tourActive=true;showTour();}
+  function endTour(skipped=false){tourActive=false;write('bedo-tour-state',{version:1,completed:true,skipped});document.getElementById('bd-dialog')?.remove();if(tourOrigin){page=tourOrigin.page;view=tourOrigin.view;settingsSection=tourOrigin.settingsSection;}render();document.querySelector('[data-action=tour]')?.focus({preventScroll:true});}
   function downloadData(recovery=false){
     const account=window.BedoAuth?.currentUser(),snapshot=recovery?read('bedo-recovery-'+account?.sub,null):window.BedoSync?.exportData()||{blocks,ideas,profile};
     if(!snapshot){dialog('<h2>No previous device copy.</h2><p>No replaced local workspace has been kept on this device.</p>');return;}
@@ -216,7 +219,7 @@
     const share=read('bedo-share',{});status.textContent=disable?'Disabling link…':'Publishing snapshot…';
     try{
       const body=disable?{action:'unpublish',session,token:share.token}:{action:'publish',session,data:{profile,blocks:blocks.map(({id,title,start,duration,date,category})=>({id,title,start,duration,date,category})),dailyNotes:document.getElementById('bd-share-notes').checked?read('bedo-daily-notes',[]):[]}};
-      const response=await fetch(localStorage.getItem('bedo-sync-url')||'https://script.google.com/macros/s/AKfycbyMPgUg0MQlPtHMNBZYAks0_x1VZ2HXb7_iX873gcpg9Vee2LjRIacJHs-ua33OATXH/exec',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)}),result=await response.json();
+      const response=await fetch(localStorage.getItem('bedo-sync-url')||window.BEDO_API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)}),result=await response.json();
       if(!result.ok)throw new Error(result.error||'Sharing could not be completed.');
       if(disable){localStorage.removeItem('bedo-share');status.textContent='Link disabled.';return;}
       const url=location.origin+'/?share='+encodeURIComponent(result.token);write('bedo-share',{token:result.token,url});status.innerHTML=`<a href="${esc(url)}" target="_blank" rel="noopener">Open shared schedule ↗</a><br><input readonly aria-label="Shared schedule link" value="${esc(url)}">`;
@@ -260,6 +263,7 @@
     if(b.dataset.deleteNote&&confirm('Delete this note?')){ideas=ideas.filter(n=>n.id!==b.dataset.deleteNote);save();render();}
     if(b.dataset.palette){profile={...profile,theme:b.dataset.palette};write('bedo-profile',profile);setTheme();document.querySelectorAll('.bd-palettes [data-palette]').forEach(p=>p.classList.toggle('active',p===b));document.querySelector('[data-action="custom-color"]')?.setAttribute('aria-pressed','false');const field=document.getElementById('bd-custom-hex');if(field&&!normalizeColor(field.value)){field.value=normalizeColor(profile.customColor)||'#7c5ce7';field.removeAttribute('aria-invalid');}}
     const action=b.dataset.action;
+    if(b.dataset.settingsSection){settingsSection=b.dataset.settingsSection;render();window.scrollTo({top:0});root.querySelector(`[data-settings-section="${settingsSection}"]`).focus({preventScroll:true});}
     if(action==='share-day')dayShareDialog();
     if(action==='copy-day'){const field=document.getElementById('bd-rundown'),status=document.getElementById('bd-rundown-status');try{await navigator.clipboard.writeText(field.value);status.textContent='Copied. Paste it into any chat.';}catch{field.focus();field.select();status.textContent='Select and copy the text above to share it.';}}
     if(action==='tour')startTour();
@@ -330,15 +334,20 @@
   setInterval(tick,1000);
   function mountNoteButton(){
     if(document.getElementById('bd-fab'))return;
-    const fab=document.createElement('button');fab.id='bd-fab';fab.className='bd-fab';fab.setAttribute('aria-label','Capture a quick note. Drag to move.');fab.title='Quick note · drag to move';fab.innerHTML='✎';document.body.appendChild(fab);
-    const place=(x,y)=>{fab.style.right='auto';fab.style.bottom='auto';fab.style.left=Math.max(8,Math.min(innerWidth-63,x))+'px';fab.style.top=Math.max(8,Math.min(innerHeight-63,y))+'px';};
+    const fab=document.createElement('button');fab.id='bd-fab';fab.className='bd-fab bd-owl';document.body.appendChild(fab);
+    let mode=read('bedo-quick-action','note')==='block'?'block':'note';
+    const update=()=>{fab.dataset.mode=mode;fab.setAttribute('aria-label',(mode==='note'?'Capture a quick note':'Add a time block')+'. Swipe sideways or use arrow keys to switch. Hold and drag to move.');fab.title='Swipe to switch · hold and drag to move';fab.innerHTML='<span class="bd-owl-face" aria-hidden="true">'+logo()+'</span><span class="bd-owl-feet" aria-hidden="true"></span><span class="bd-owl-label">'+(mode==='note'?'Note':'＋ Block')+' ⇄</span>';};
+    const toggle=()=>{mode=mode==='note'?'block':'note';write('bedo-quick-action',mode);update();};
+    update();
+    const place=(x,y)=>{fab.style.right='auto';fab.style.bottom='auto';fab.style.left=Math.max(8,Math.min(innerWidth-fab.offsetWidth-8,x))+'px';fab.style.top=Math.max(72,Math.min(innerHeight-fab.offsetHeight-(innerWidth<=760?86:8),y))+'px';};
     const position=read('bedo-quick-note-position',null);if(position)place(position.x,position.y);
-    let pointer=null,moved=false;
-    fab.addEventListener('pointerdown',e=>{const rect=fab.getBoundingClientRect();pointer={id:e.pointerId,x:e.clientX,y:e.clientY,left:rect.left,top:rect.top};moved=false;fab.setPointerCapture(e.pointerId);});
-    fab.addEventListener('pointermove',e=>{if(!pointer||pointer.id!==e.pointerId)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;moved ||= Math.hypot(dx,dy)>4;if(moved)place(pointer.left+dx,pointer.top+dy);});
-    fab.addEventListener('pointerup',()=>{if(moved)write('bedo-quick-note-position',{x:fab.offsetLeft,y:fab.offsetTop});pointer=null;});
-    fab.addEventListener('pointercancel',()=>{pointer=null;moved=true;});
-    fab.addEventListener('click',()=>{if(moved){moved=false;return;}noteDialog();});
+    let pointer=null,suppress=false;
+    fab.addEventListener('pointerdown',e=>{if(e.button!==0)return;const rect=fab.getBoundingClientRect();pointer={id:e.pointerId,x:e.clientX,y:e.clientY,left:rect.left,top:rect.top,time:performance.now(),moving:false};suppress=false;fab.setPointerCapture(e.pointerId);});
+    fab.addEventListener('pointermove',e=>{if(!pointer||pointer.id!==e.pointerId)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(Math.hypot(dx,dy)>6&&(performance.now()-pointer.time>=300||Math.abs(dy)>22))pointer.moving=true;if(pointer.moving){suppress=true;place(pointer.left+dx,pointer.top+dy);}});
+    fab.addEventListener('pointerup',e=>{if(!pointer||pointer.id!==e.pointerId)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(pointer.moving){write('bedo-quick-note-position',{x:fab.offsetLeft,y:fab.offsetTop});}else if(Math.abs(dx)>=24&&Math.abs(dy)<22){suppress=true;toggle();}else if(Math.hypot(dx,dy)>6)suppress=true;pointer=null;});
+    fab.addEventListener('pointercancel',()=>{pointer=null;suppress=true;});
+    fab.addEventListener('click',()=>{if(suppress){suppress=false;return;}if(mode==='block')blockDialog();else noteDialog();});
+    fab.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();toggle();}});
     addEventListener('resize',()=>{if(fab.style.left)place(fab.offsetLeft,fab.offsetTop);});
   }
   function landing() {
@@ -349,7 +358,7 @@
     if(location.pathname==='/login')screen.querySelector('.bd-google-entry').scrollIntoView();
   }
   const shared=new URLSearchParams(location.search).get('share');
-  if(shared){root.innerHTML='<div class="bd-empty">Loading shared schedule…</div>';fetch((localStorage.getItem('bedo-sync-url')||'https://script.google.com/macros/s/AKfycbyMPgUg0MQlPtHMNBZYAks0_x1VZ2HXb7_iX873gcpg9Vee2LjRIacJHs-ua33OATXH/exec')+'?action=public&token='+encodeURIComponent(shared)).then(r=>r.json()).then(r=>{if(!r.ok)throw new Error(r.error);root.innerHTML=`<main class="bd-shared"><span class="bd-logo">${logo()}</span><h1>${esc(r.data.profile?.title||'Shared bedo')}</h1>${r.data.blocks.map(b=>`<article class="bd-card"><small>${esc(b.date)} · ${clockTime(b.start)}</small><h2>${esc(b.title)}</h2></article>`).join('')}</main>`;}).catch(e=>root.innerHTML=`<div class="bd-empty">${esc(e.message)}</div>`);return;}
+  if(shared){root.innerHTML='<div class="bd-empty">Loading shared schedule…</div>';fetch((localStorage.getItem('bedo-sync-url')||window.BEDO_API_URL)+'?action=public&token='+encodeURIComponent(shared)).then(r=>r.json()).then(r=>{if(!r.ok)throw new Error(r.error);root.innerHTML=`<main class="bd-shared"><span class="bd-logo">${logo()}</span><h1>${esc(r.data.profile?.title||'Shared bedo')}</h1>${r.data.blocks.map(b=>`<article class="bd-card"><small>${esc(b.date)} · ${clockTime(b.start)}</small><h2>${esc(b.title)}</h2></article>`).join('')}</main>`;}).catch(e=>root.innerHTML=`<div class="bd-empty">${esc(e.message)}</div>`);return;}
   function openWorkspace(){
     blocks=read('bedo-blocks',[]);ideas=read('bedo-ideas',[]);profile=read('bedo-profile',{});categories=profile.categories||['Personal','Work','Wellness','Study'];render();landing();
     if(!demo&&localStorage.getItem('bedo-auth-session')&&!read('bedo-tour-state',{}).completed&&!document.getElementById('bedo-login'))startTour();

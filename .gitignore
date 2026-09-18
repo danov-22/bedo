@@ -1,0 +1,6 @@
+# Local browser diagnostic profiles may contain private browsing data.
+.chrome-check*/
+.local-artifacts/
+node_modules/
+playwright-report/
+test-results/

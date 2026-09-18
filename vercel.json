@@ -1,27 +1,57 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/storage-migration.js", "destination": "/Bedo-site/storage-migration.js" },
-    { "source": "/bedo-app.js", "destination": "/Bedo-site/bedo-app.js" },
-    { "source": "/bedo-app.css", "destination": "/Bedo-site/bedo-app.css" },
-    { "source": "/", "destination": "/Bedo-site/index.html" },
-    { "source": "/assets/:path*", "destination": "/Bedo-site/assets/:path*" },
-    { "source": "/bedo-sync.js", "destination": "/Bedo-site/bedo-sync.js" },
-    { "source": "/bedo-sync.css", "destination": "/Bedo-site/bedo-sync.css" },
-    { "source": "/bedo-enhancements.js", "destination": "/Bedo-site/bedo-enhancements.js" },
-    { "source": "/bedo-enhancements.css", "destination": "/Bedo-site/bedo-enhancements.css" },
-    { "source": "/bedo-auth.js", "destination": "/Bedo-site/bedo-auth.js" },
-    { "source": "/bedo-auth.css", "destination": "/Bedo-site/bedo-auth.css" },
-    { "source": "/bedo-product.js", "destination": "/Bedo-site/bedo-product.js" },
-    { "source": "/bedo-product.css", "destination": "/Bedo-site/bedo-product.css" },
-    { "source": "/auth-config.js", "destination": "/Bedo-site/auth-config.js" },
-    { "source": "/service-worker.js", "destination": "/Bedo-site/service-worker.js" },
-    { "source": "/manifest.webmanifest", "destination": "/Bedo-site/manifest.webmanifest" },
-    { "source": "/favicon.svg", "destination": "/Bedo-site/favicon.svg" },
-    { "source": "/logo-mask.svg", "destination": "/Bedo-site/logo-mask.svg" },
-    { "source": "/logo-glyph.svg", "destination": "/Bedo-site/logo-glyph.svg" },
-    { "source": "/logo-dark-glyph.svg", "destination": "/Bedo-site/logo-dark-glyph.svg" },
-    { "source": "/robots.txt", "destination": "/Bedo-site/robots.txt" },
-    { "source": "/:path*", "destination": "/Bedo-site/index.html" }
+    {
+      "source": "/app-config.js",
+      "destination": "/Bedo-site/app-config.js"
+    },
+    {
+      "source": "/storage-migration.js",
+      "destination": "/Bedo-site/storage-migration.js"
+    },
+    {
+      "source": "/bedo-app.js",
+      "destination": "/Bedo-site/bedo-app.js"
+    },
+    {
+      "source": "/bedo-app.css",
+      "destination": "/Bedo-site/bedo-app.css"
+    },
+    {
+      "source": "/",
+      "destination": "/Bedo-site/index.html"
+    },
+    {
+      "source": "/bedo-sync.js",
+      "destination": "/Bedo-site/bedo-sync.js"
+    },
+    {
+      "source": "/bedo-auth.js",
+      "destination": "/Bedo-site/bedo-auth.js"
+    },
+    {
+      "source": "/auth-config.js",
+      "destination": "/Bedo-site/auth-config.js"
+    },
+    {
+      "source": "/service-worker.js",
+      "destination": "/Bedo-site/service-worker.js"
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "destination": "/Bedo-site/manifest.webmanifest"
+    },
+    {
+      "source": "/favicon.svg",
+      "destination": "/Bedo-site/favicon.svg"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/Bedo-site/robots.txt"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/Bedo-site/index.html"
+    }
   ]
 }

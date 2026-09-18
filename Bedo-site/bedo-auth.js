@@ -7,7 +7,7 @@
   const privateKeys = ["bedo-blocks", "bedo-ideas", "bedo-daily-notes", "bedo-routines", "bedo-profile", "bedo-share", "bedo-theme", "bedo-tour-state", "bedo-last-sync", "bedo-sync-pending"];
   const demoKeys = privateKeys.concat(["bedo-theme", "bedo-reminders", "bedo-locked", "bedo-calendar-hours", "bedo-appscript", "bedo-sync-pending"]);
   const demoBackupKey = "bedo-demo-backup";
-  const defaultApiUrl = "https://script.google.com/macros/s/AKfycbyMPgUg0MQlPtHMNBZYAks0_x1VZ2HXb7_iX873gcpg9Vee2LjRIacJHs-ua33OATXH/exec";
+  const defaultApiUrl = window.BEDO_API_URL;
 
   function decodeCredential(credential) {
     const payload = credential.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
