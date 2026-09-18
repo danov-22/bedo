@@ -18,8 +18,11 @@ bedo is a calm, self-hostable time-blocking planner for schedules, brainstorm no
 - Five-minute start and duration precision
 - Editable day rundowns to copy or open in WhatsApp
 - Replayable mobile-friendly tour and sectioned Settings
-- Blinking logo quick input: click first, then swipe the panel header or use tabs/arrow keys to switch Quick note / Add block. Drafts survive switching; hold and drag the floating logo to reposition.
+- Blinking logo quick input: click first, then swipe the panel header or use tabs/arrow keys to switch Quick note / Add a block. Drafts survive switching; hold and drag the floating logo to reposition.
 - White surfaces with vivid green, blue, and red accents; stronger gray neutral and matching dark themes
+- Blue, yellow, purple, and green schedule blocks
+- Day and Week use page scrolling (no nested timeline scrollbars); Calendar loads more months as you scroll, with an Earlier month control for the past
+- Floating logo is the entry for new notes and blocks; gentle idle hints appear after 45 seconds, dismiss on activity, and pause during forms/tours
 
 ## Self-hosting
 

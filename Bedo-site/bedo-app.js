@@ -81,7 +81,7 @@
   }
   function nav() { return ['calendar','brainstorm','insights','settings'].map(p => `<button data-page="${p}" class="${page===p?'active':''}"><span aria-hidden="true">${icons[p]}</span>${p==='calendar'?'Timeblock':p[0].toUpperCase()+p.slice(1)}</button>`).join(''); }
   function render() {
-    const scrollPositions = new Map(Array.from(document.querySelectorAll('.bd-day-track')).map(track=>[track.dataset.trackDate,track.parentElement.scrollTop]));
+    monthObserver?.disconnect();
     setTheme();
     root.innerHTML = `<div class="bd-shell"><aside class="bd-sidebar"><a class="bd-brand" href="/"><span class="bd-logo">${logo()}</span>bedo<span class="bd-brand-dot">.</span></a><p>A little space for your day.</p><nav>${nav()}</nav><div class="bd-sidebar-note">Make room for life.<br>Not just your to-do list. ☀️</div></aside><main class="bd-main"><header class="bd-top"><a class="bd-logo" href="/" aria-label="bedo home">${logo()}</a><div class="bd-top-actions">${demo?'<button class="bd-exit" data-action="exit">← Exit demo</button>':''}<span id="bd-save-badge" class="bd-save-badge"></span><time id="bd-clock"></time><button class="bd-icon" data-action="theme" aria-label="Toggle light or dark theme">${read('bedo-theme','light')==='dark'?'☀':'☾'}</button></div></header><div class="bd-content">${page==='calendar'?calendar():page==='brainstorm'?brainstorm():page==='insights'?insights():settings()}</div></main><nav class="bd-mobile-nav">${nav()}</nav></div>`;
     if(page==='calendar'){
@@ -91,12 +91,8 @@
     }
     if(page==='settings')organizeSettings();
     tick(); mountNoteButton(); updateSavingStatus();
-    requestAnimationFrame(() => document.querySelectorAll('.bd-timeline').forEach(timeline => {
-      const track=timeline.querySelector('.bd-day-track');
-      const list=blocks.filter(b=>b.date===track.dataset.trackDate);
-      const first=list.length?Math.max(0,Math.min(...list.map(b=>Number(b.start)))-1):7;
-      timeline.scrollTop=scrollPositions.get(track.dataset.trackDate) ?? first*Number(track.dataset.hourHeight);
-    }));
+    document.documentElement.style.setProperty('--bd-header-height',root.querySelector('.bd-top').offsetHeight+'px');
+    if(page==='calendar'&&view==='month'&&!tourActive)observeMonths();
   }
   function filters() { return `<div class="bd-filters" aria-label="Filter blocks by category">${['All',...categories].map(c=>`<button data-filter="${esc(c)}" class="${filter===c?'active':''}">${c!=='All'?`<i class="${tint(c)}"></i>`:''}${esc(c)}</button>`).join('')}</div>`; }
   function organizeSettings(){
@@ -114,7 +110,7 @@
   }
   function calendar() {
     const title = view==='month' ? 'A little space for everything.' : dateLabel(selected,{weekday:'long',month:'long',day:'numeric'});
-    return `<section class="bd-heading"><div><span class="bd-kicker">YOUR TIME, YOUR PACE ✨</span><h1>${title}</h1><p>${view==='month'?'Pick a day. Make room for what matters.':'A flexible plan. Not a perfect one.'}</p></div><button class="bd-primary" data-action="add">＋ Add block</button></section><div class="bd-toolbar"><div class="bd-segments">${['month','day','week'].map(v=>`<button data-view="${v}" class="${view===v?'active':''}">${v==='month'?'Calendar':v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div><div class="bd-date-nav"><button data-action="prev" aria-label="Previous period">‹</button><strong>${view==='month'?dateLabel(month,{month:'long',year:'numeric'}):view==='week'?'Week of '+dateLabel(monday(),{month:'short',day:'numeric'}):dateLabel(selected,{month:'short',day:'numeric'})}</strong><button data-action="next" aria-label="Next period">›</button><button data-action="today">Today</button></div></div>${filters()}${view==='month'?monthCalendar():view==='week'?weekCalendar():dayCalendar(selected)}<p class="bd-help">${view==='month'?'Tap any date to explore and plan your day.':'Drag the ⋮⋮ handle to move a block. Changes apply to this occurrence only.'}</p>`;
+    return `<section class="bd-heading"><div><span class="bd-kicker">YOUR TIME, YOUR PACE ✨</span><h1>${title}</h1><p>${view==='month'?'Pick a day. Make room for what matters.':'A flexible plan. Not a perfect one.'}</p></div></section><div class="bd-toolbar"><div class="bd-segments">${['month','day','week'].map(v=>`<button data-view="${v}" class="${view===v?'active':''}">${v==='month'?'Calendar':v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div><div class="bd-date-nav"><button data-action="prev" aria-label="Previous period">‹</button><strong>${view==='month'?dateLabel(month,{month:'long',year:'numeric'}):view==='week'?'Week of '+dateLabel(monday(),{month:'short',day:'numeric'}):dateLabel(selected,{month:'short',day:'numeric'})}</strong><button data-action="next" aria-label="Next period">›</button><button data-action="today">Today</button></div></div>${filters()}${view==='month'?monthStream():view==='week'?weekCalendar():dayCalendar(selected)}<p class="bd-help">${view==='month'?'Tap any date to explore and plan your day.':'Drag the ⋮⋮ handle to move a block. Changes apply to this occurrence only.'}</p>`;
   }
   function dayRundown(day) {
     const items=blocks.filter(b=>b.date===dateKey(day)).sort((a,b)=>a.start-b.start);
@@ -127,13 +123,23 @@
   function updateWhatsApp(){const link=document.getElementById('bd-whatsapp');if(link)link.href='https://wa.me/?text='+encodeURIComponent(document.getElementById('bd-rundown').value);}
   document.addEventListener('input',e=>{if(e.target.id==='bd-rundown')updateWhatsApp();});
   document.addEventListener('change',e=>{if(e.target.id==='bd-rundown-date'&&e.target.value){document.getElementById('bd-rundown').value=dayRundown(fromKey(e.target.value));updateWhatsApp();}});
-  function monthCalendar() {
-    const first=new Date(month.getFullYear(),month.getMonth(),1), offset=(first.getDay()+6)%7;
+  let monthObserver=null;
+  function monthStream(){return `<div class="bd-month-stream"><button class="bd-secondary" data-action="earlier-month">↑ Earlier month</button><div id="bd-month-list">${monthSection(month)}</div><button class="bd-secondary" id="bd-more-months" data-action="later-month">Next month ↓</button></div>`;}
+  function monthSection(date){return `<section class="bd-month-section" data-month="${dateKey(new Date(date.getFullYear(),date.getMonth(),1))}"><h2>${dateLabel(date,{month:'long',year:'numeric'})}</h2>${monthCalendar(date)}</section>`;}
+  function addMonth(earlier=false){
+    const list=document.getElementById('bd-month-list');if(!list||tourActive||document.getElementById('bd-dialog'))return;
+    const edge=fromKey((earlier?list.firstElementChild:list.lastElementChild).dataset.month),next=new Date(edge.getFullYear(),edge.getMonth()+(earlier?-1:1),1),height=list.offsetHeight;
+    list.insertAdjacentHTML(earlier?'afterbegin':'beforeend',monthSection(next));
+    if(earlier)window.scrollBy(0,list.offsetHeight-height);
+  }
+  function observeMonths(){if(!('IntersectionObserver' in window))return;monthObserver=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting))addMonth();},{rootMargin:'0px'});monthObserver.observe(document.getElementById('bd-more-months'));}
+  function monthCalendar(calendarMonth=month) {
+    const first=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth(),1), offset=(first.getDay()+6)%7;
     const start=new Date(first); start.setDate(1-offset);
     let html='<div class="bd-month">'+['MON','TUE','WED','THU','FRI','SAT','SUN'].map(d=>`<div class="bd-month-head">${d}</div>`).join('');
     for(let i=0;i<42;i++) {
       const d=new Date(start);d.setDate(start.getDate()+i);const list=visible(d),complete=dayCompleted(d);
-      html+=`<button class="bd-month-day ${d.getMonth()!==month.getMonth()?'muted':''} ${dateKey(d)===dateKey(new Date())?'today':''}" data-date="${dateKey(d)}" aria-label="${esc(dateLabel(d,{dateStyle:'full'}))}, ${list.length} blocks${complete?', All blocks completed. Nice work!':''}"><span class="bd-date-number">${d.getDate()}</span>${dayStatus(d)}<div class="bd-day-dots">${list.slice(0,3).map(b=>`<i class="${tint(category(b))}"></i>`).join('')}</div><div class="bd-month-events">${list.slice(0,2).map(b=>`<small class="${tint(category(b))}">${esc(b.title)}</small>`).join('')}${list.length>2?`<em>+${list.length-2} more</em>`:''}</div></button>`;
+      html+=`<button class="bd-month-day ${d.getMonth()!==calendarMonth.getMonth()?'muted':''} ${d.getMonth()===calendarMonth.getMonth()&&dateKey(d)===dateKey(new Date())?'today':''}" data-date="${dateKey(d)}" aria-label="${esc(dateLabel(d,{dateStyle:'full'}))}, ${list.length} blocks${complete?', All blocks completed. Nice work!':''}"><span class="bd-date-number">${d.getDate()}</span>${dayStatus(d)}<div class="bd-day-dots">${list.slice(0,3).map(b=>`<i class="${tint(category(b))}"></i>`).join('')}</div><div class="bd-month-events">${list.slice(0,2).map(b=>`<small class="${tint(category(b))}">${esc(b.title)}</small>`).join('')}${list.length>2?`<em>+${list.length-2} more</em>`:''}</div></button>`;
     }
     return html+'</div>';
   }
@@ -145,7 +151,7 @@
     const list=visible(day), height=compact?50:72;
     return `<div class="bd-timeline ${compact?'compact':''}" style="--hour:${height}px"><div class="bd-time-axis">${Array.from({length:24},(_,h)=>`<span>${compact?String(h).padStart(2,'0'):clockTime(h)}</span>`).join('')}</div><div class="bd-day-track" data-track-date="${dateKey(day)}" data-hour-height="${height}">${list.map(b=>`<article class="bd-block ${tint(category(b))} ${b.completed?'done':''}" data-block="${esc(b.id)}" style="top:${Number(b.start)*height}px;height:${Math.max(42,Number(b.duration)*height-3)}px"><button class="bd-drag" data-drag="${esc(b.id)}" aria-label="Drag ${esc(b.title)} to a new time">⋮⋮</button><button class="bd-block-body" data-edit="${esc(b.id)}"><strong>${esc(b.title)}</strong><small>${clockTime(b.start)} · ${Math.round(b.duration*100)/100}h</small><em>${esc(category(b))}</em></button><button class="bd-check" data-complete="${esc(b.id)}" aria-label="${b.completed?'Mark incomplete':'Complete'} ${esc(b.title)}">${b.completed?'✓':'○'}</button></article>`).join('')}${dateKey(day)===dateKey(new Date())?`<div class="bd-now" style="top:${(new Date().getHours()+new Date().getMinutes()/60)*height}px"></div>`:''}</div></div>${!list.length&&!compact?'<div class="bd-empty">A little breathing room 🌱<p>Add a block to shape this day.</p></div>':''}`;
   }
-  function brainstorm() { return `<section class="bd-heading"><div><span class="bd-kicker">LESS IN YOUR HEAD 🧠</span><h1>Room for your thoughts.</h1><p>Capture the messy middle. Give an idea a time when you’re ready.</p></div><button class="bd-primary" data-action="note">＋ New note</button></section><div class="bd-note-grid">${ideas.map(n=>`<article class="bd-note"><span class="bd-note-label">A LITTLE THOUGHT</span><p>${esc(n.text)}</p><div><button data-schedule-note="${esc(n.id)}">↗ Add to schedule</button><button data-edit-note="${esc(n.id)}" aria-label="Edit note">Edit</button><button data-delete-note="${esc(n.id)}" aria-label="Delete note">×</button></div></article>`).join('')||'<div class="bd-empty">Start with a thought ✍️<p>No sorting required. This is your space.</p></div>'}</div>`; }
+  function brainstorm() { return `<section class="bd-heading"><div><span class="bd-kicker">LESS IN YOUR HEAD 🧠</span><h1>Room for your thoughts.</h1><p>Capture the messy middle. Give an idea a time when you’re ready.</p></div></section><div class="bd-note-grid">${ideas.map(n=>`<article class="bd-note"><span class="bd-note-label">A LITTLE THOUGHT</span><p>${esc(n.text)}</p><div><button data-schedule-note="${esc(n.id)}">↗ Add to schedule</button><button data-edit-note="${esc(n.id)}" aria-label="Edit note">Edit</button><button data-delete-note="${esc(n.id)}" aria-label="Delete note">×</button></div></article>`).join('')||'<div class="bd-empty">Start with a thought ✍️<p>No sorting required. This is your space.</p></div>'}</div>`; }
   function insights() {
     const start=monday(),days=Array.from({length:7},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return d;});
     const week=blocks.filter(b=>days.some(d=>b.date===dateKey(d))),done=week.filter(b=>b.completed),hours=done.reduce((sum,b)=>sum+Number(b.duration||0),0);
@@ -166,12 +172,12 @@
   addEventListener('bedo-sync-status',updateSavingStatus);
   let tourActive=false,tourIndex=0,tourOrigin=null;
   const tourSteps=[
-    ['calendar','month','Welcome to your bedo','A place for your time and your thoughts. This tour shows the features that are easy to miss—nothing you do here adds or changes a block.'],
-    ['calendar','month','Start with the bigger picture','Open any date to plan that day. Category chips narrow the view without deleting anything. 🎯 marks fully completed days; 🎗️ marks unfinished past days.'],
-    ['calendar','day','Make time fit your day','Add a block using a start time and Minutes. Tap its title to edit it. You can plan in 5-minute steps rather than whole hours.'],
+    ['calendar','month','Welcome to your bedo','A place for your time and your thoughts.'],
+    ['calendar','month','Start with the bigger picture','Open any date to plan that day. 🎯 marks fully completed days; 🎗️ marks unfinished past days.'],
+    ['calendar','day','Make time fit your day','Tap the floating logo, then choose Add a block or swipe the input header. Set a start time and Minutes. Tap its title to edit it. You can plan in 5-minute steps rather than whole hours.'],
     ['calendar','day','Move one moment, not your whole week','Drag the ⋮⋮ handle to move a block within its day. Other dates are untouched. Drag near the timeline’s edge to scroll.'],
     ['calendar','week','Repeat only when you want to','New blocks can repeat daily, on weekdays, or weekly for the next 4 weeks. Each occurrence is independent. Week view helps you see how your plan fits together.'],
-    ['brainstorm',null,'Give your thoughts somewhere to land','Capture notes here or with the floating logo on any page. Tap it, then swipe across the input header to switch Quick note / Add block. Hold and drag the logo to move it. “Add to schedule” turns a note into a block without removing the note.'],
+    ['brainstorm',null,'Give your thoughts somewhere to land','Capture notes here or with the floating logo on any page. Tap it, then swipe across the input header to switch Quick note / Add a block. Hold and drag the logo to move it. “Add to schedule” turns a note into a block without removing the note.'],
     ['insights',null,'See your progress, not just your plans','Check off finished blocks to build your weekly completion and motion stats. Insights follows the week containing the calendar day you selected.'],
     ['settings',null,'Know where everything is saved','Look under “Your saved data” for a confirmed online save time. Offline edits stay on your device and retry when connected. Download a copy any time.'],
     ['settings',null,'Make this space yours','Choose a theme or custom hex color, name your categories, and use account controls here. Replay this tour anytime from “How to use app”.']
@@ -183,14 +189,18 @@
     const layer=document.getElementById('bd-dialog');layer.classList.add('bd-tour-layer');layer.querySelector('[role=dialog]').setAttribute('aria-labelledby','bd-tour-title');layer.querySelector('[data-action=tour-next]').focus({preventScroll:true});
     requestAnimationFrame(()=>positionTour());
   }
-  const tourTargets=['.bd-heading','.bd-month','.bd-heading [data-action=add]','.bd-timeline','.bd-week-mobile,.bd-week-grid','.bd-note-grid','.bd-stats','#bd-saving-card','#bd-settings'];
+  const tourTargets=['.bd-heading','.bd-month','#bd-fab','.bd-timeline','.bd-week-mobile,.bd-week-grid','.bd-note-grid','.bd-stats','#bd-saving-card','#bd-settings'];
   function positionTour(){
     document.querySelectorAll('.bd-tour-highlight').forEach(el=>el.classList.remove('bd-tour-highlight'));
     const layer=document.querySelector('.bd-tour-layer');if(!tourActive||!layer)return;
     const target=Array.from(document.querySelectorAll(tourTargets[tourIndex])).find(el=>el.getBoundingClientRect().height>0)||document.querySelector('.bd-heading');if(!target)return;
     target.classList.add('bd-tour-highlight');
     const top=document.querySelector('.bd-top').getBoundingClientRect().height+12;
-    window.scrollBy({top:target.getBoundingClientRect().top-top,behavior:'instant'});
+    if(target.id!=='bd-fab')window.scrollBy({top:target.getBoundingClientRect().top-top,behavior:'instant'});
+    else {
+      const fab=target.getBoundingClientRect(),sheetHeight=layer.querySelector('.bd-dialog').offsetHeight;
+      target.style.right='auto';target.style.bottom='auto';target.style.left=fab.left+'px';target.style.top=Math.max(top,innerHeight-sheetHeight-fab.height-36)+'px';
+    }
     const rect=target.getBoundingClientRect(),sheet=layer.querySelector('.bd-dialog').getBoundingClientRect();
     const frame=document.createElement('div');frame.className='bd-tour-frame';frame.setAttribute('aria-hidden','true');
     layer.querySelector('.bd-tour-frame')?.remove();layer.prepend(frame);
@@ -198,7 +208,7 @@
   }
   addEventListener('resize',()=>{if(tourActive)positionTour();});
   function startTour(){tourOrigin={page,view,settingsSection};tourIndex=0;tourActive=true;showTour();}
-  function endTour(skipped=false){tourActive=false;write('bedo-tour-state',{version:1,completed:true,skipped});document.getElementById('bd-dialog')?.remove();if(tourOrigin){page=tourOrigin.page;view=tourOrigin.view;settingsSection=tourOrigin.settingsSection;}render();document.querySelector('[data-action=tour]')?.focus({preventScroll:true});}
+  function endTour(skipped=false){tourActive=false;write('bedo-tour-state',{version:1,completed:true,skipped});document.getElementById('bd-dialog')?.remove();document.getElementById('bd-fab')?.remove();if(tourOrigin){page=tourOrigin.page;view=tourOrigin.view;settingsSection=tourOrigin.settingsSection;}render();document.querySelector('[data-action=tour]')?.focus({preventScroll:true});}
   function downloadData(recovery=false){
     const account=window.BedoAuth?.currentUser(),snapshot=recovery?read('bedo-recovery-'+account?.sub,null):window.BedoSync?.exportData()||{blocks,ideas,profile};
     if(!snapshot){dialog('<h2>No previous device copy.</h2><p>No replaced local workspace has been kept on this device.</p>');return;}
@@ -251,9 +261,9 @@
   document.addEventListener('click',async event=>{
     const b=event.target.closest('button,a');if(!b)return;
     if(b.dataset.page){page=b.dataset.page;render();window.scrollTo(0,0);}
-    if(b.dataset.view){view=b.dataset.view;render();}
-    if(b.dataset.date){selected=fromKey(b.dataset.date);view='day';render();}
-    if(b.dataset.weekDate){selected=fromKey(b.dataset.weekDate);render();}
+    if(b.dataset.view){view=b.dataset.view;render();window.scrollTo(0,0);}
+    if(b.dataset.date){selected=fromKey(b.dataset.date);month=new Date(selected);view='day';render();window.scrollTo(0,0);}
+    if(b.dataset.weekDate){selected=fromKey(b.dataset.weekDate);render();window.scrollTo(0,0);}
     if(b.dataset.filter){filter=b.dataset.filter;render();}
     if(b.dataset.edit)blockDialog(b.dataset.edit);
     if(b.dataset.complete){blocks=blocks.map(x=>x.id===b.dataset.complete?{...x,completed:!x.completed}:x);save();render();}
@@ -263,6 +273,7 @@
     if(b.dataset.deleteNote&&confirm('Delete this note?')){ideas=ideas.filter(n=>n.id!==b.dataset.deleteNote);save();render();}
     if(b.dataset.palette){profile={...profile,theme:b.dataset.palette};write('bedo-profile',profile);setTheme();document.querySelectorAll('.bd-palettes [data-palette]').forEach(p=>p.classList.toggle('active',p===b));document.querySelector('[data-action="custom-color"]')?.setAttribute('aria-pressed','false');const field=document.getElementById('bd-custom-hex');if(field&&!normalizeColor(field.value)){field.value=normalizeColor(profile.customColor)||'#7c5ce7';field.removeAttribute('aria-invalid');}}
     const action=b.dataset.action;
+    if(action==='earlier-month')addMonth(true);if(action==='later-month')addMonth();
     if(b.dataset.settingsSection){settingsSection=b.dataset.settingsSection;render();window.scrollTo({top:0});root.querySelector(`[data-settings-section="${settingsSection}"]`).focus({preventScroll:true});}
     if(action==='share-day')dayShareDialog();
     if(action==='copy-day'){const field=document.getElementById('bd-rundown'),status=document.getElementById('bd-rundown-status');try{await navigator.clipboard.writeText(field.value);status.textContent='Copied. Paste it into any chat.';}catch{field.focus();field.select();status.textContent='Select and copy the text above to share it.';}}
@@ -279,7 +290,7 @@
       profile={...profile,theme:'custom',customColor:color};write('bedo-profile',profile);setTheme();
       document.querySelectorAll('.bd-palettes [data-palette]').forEach(p=>p.classList.remove('active'));b.setAttribute('aria-pressed','true');status.textContent='Your custom color is applied and saved.';
     }
-    if(action==='add')blockDialog();if(action==='note')noteDialog();if(action==='close')document.getElementById('bd-dialog')?.remove();
+    if(action==='close')document.getElementById('bd-dialog')?.remove();
     if(action==='exit')window.BedoDemo?.exit();if(action==='switch')window.BedoAuth?.switchAccount();if(action==='signout')window.BedoAuth?.signOut();
     if(action==='share')shareDialog();if(action==='publish')publishShare();if(action==='unpublish')publishShare(true);
     if(action==='theme'){write('bedo-theme',read('bedo-theme','light')==='dark'?'light':'dark');render();}
@@ -303,14 +314,13 @@
     const handle=event.target.closest('[data-drag]');if(!handle||event.button!==0)return;
     const block=blocks.find(b=>b.id===handle.dataset.drag),element=handle.closest('.bd-block'),track=element.parentElement;
     const timeline=track.parentElement;
-    drag={id:block.id,date:block.date,start:Number(block.start),duration:Number(block.duration),y:event.clientY,height:Number(track.dataset.hourHeight),element,handle,pointer:event.pointerId,moved:false,timeline,scrollStart:timeline.scrollTop};handle.setPointerCapture(event.pointerId);element.classList.add('dragging');event.preventDefault();
+    drag={id:block.id,date:block.date,start:Number(block.start),duration:Number(block.duration),y:event.clientY,height:Number(track.dataset.hourHeight),element,handle,pointer:event.pointerId,moved:false,timeline,scrollStart:window.scrollY};handle.setPointerCapture(event.pointerId);element.classList.add('dragging');event.preventDefault();
   });
   document.addEventListener('pointermove',event=>{
     if(!drag||drag.pointer!==event.pointerId)return;
-    const rect=drag.timeline.getBoundingClientRect();
-    if(event.clientY<rect.top+35)drag.timeline.scrollTop-=12;
-    if(event.clientY>rect.bottom-35)drag.timeline.scrollTop+=12;
-    const delta=event.clientY-drag.y+drag.timeline.scrollTop-drag.scrollStart;
+    if(event.clientY<root.querySelector('.bd-top').offsetHeight+35)window.scrollBy(0,-12);
+    if(event.clientY>innerHeight-(innerWidth<=760?105:35))window.scrollBy(0,12);
+    const delta=event.clientY-drag.y+window.scrollY-drag.scrollStart;
     drag.next=Math.max(0,Math.min(24-drag.duration,Math.round((drag.start+delta/drag.height)*12)/12));drag.moved ||= Math.abs(delta)>3;drag.element.style.top=drag.next*drag.height+'px';
   });
   document.addEventListener('pointerup',event=>{
@@ -341,7 +351,7 @@
       layer.classList.add('bd-quick-layer');
       if(drafts[mode])for(const [key,value] of Object.entries(drafts[mode])){const field=form.elements.namedItem(key);if(field)field.value=value;}
       const header=document.createElement('div');header.className='bd-quick-header';
-      header.innerHTML='<div class="bd-quick-tabs" role="group" aria-label="Quick input type"><button type="button" data-quick-mode="note" aria-pressed="'+(mode==='note')+'">Quick note</button><button type="button" data-quick-mode="block" aria-pressed="'+(mode==='block')+'">Add block</button></div><p class="bd-swipe-hint">↔ Swipe across this header to change input</p>';
+      header.innerHTML='<div class="bd-quick-tabs" role="group" aria-label="Quick input type"><button type="button" data-quick-mode="note" aria-pressed="'+(mode==='note')+'">Quick note</button><button type="button" data-quick-mode="block" aria-pressed="'+(mode==='block')+'">Add a block</button></div><p class="bd-swipe-hint">↔ Swipe across this header to change input</p>';
       panel.prepend(header);
       const change=next=>{if(next===mode)return;drafts[mode]=Object.fromEntries(new FormData(form));mode=next;write('bedo-quick-action',mode);open();document.querySelector('[data-quick-mode="'+mode+'"]').focus({preventScroll:true});};
       let start=null,swiped=false;
@@ -355,7 +365,7 @@
   }
   function mountNoteButton(){
     if(document.getElementById('bd-fab'))return;
-    const fab=document.createElement('button');fab.id='bd-fab';fab.className='bd-fab bd-quick-logo';fab.setAttribute('aria-label','Open Quick note or Add block. Hold and drag to move.');fab.title='Quick input · hold and drag to move';fab.innerHTML=logo();document.body.appendChild(fab);
+    const fab=document.createElement('button');fab.id='bd-fab';fab.className='bd-fab bd-quick-logo';fab.setAttribute('aria-label','Open Quick note or Add a block. Hold and drag to move.');fab.title='Quick input · hold and drag to move';fab.innerHTML=logo();document.body.appendChild(fab);
     const place=(x,y)=>{fab.style.right='auto';fab.style.bottom='auto';fab.style.left=Math.max(8,Math.min(innerWidth-fab.offsetWidth-8,x))+'px';fab.style.top=Math.max(72,Math.min(innerHeight-fab.offsetHeight-(innerWidth<=760?86:8),y))+'px';};
     const position=read('bedo-quick-note-position',null);if(position)place(position.x,position.y);
     let pointer=null,suppress=false;
@@ -365,6 +375,23 @@
     fab.addEventListener('pointercancel',()=>{pointer=null;suppress=true;});
     fab.addEventListener('click',()=>{if(suppress){suppress=false;return;}quickInput();});
     addEventListener('resize',()=>{if(fab.style.left)place(fab.offsetLeft,fab.offsetTop);});
+    mountIdleHint(fab);
+  }
+  let idleHintTimer=null,idleDismissTimer=null,lastHintAt=-Infinity,hintIndex=0;
+  function mountIdleHint(fab){
+    clearTimeout(idleHintTimer);
+    const bubble=document.getElementById('bd-idle-hint')||document.createElement('div');bubble.id='bd-idle-hint';bubble.className='bd-idle-hint';bubble.hidden=true;bubble.setAttribute('role','status');if(!bubble.isConnected)document.body.appendChild(bubble);
+    function reset(){bubble.hidden=true;clearTimeout(idleHintTimer);clearTimeout(idleDismissTimer);idleHintTimer=setTimeout(()=>{
+      if(!fab.isConnected||document.hidden||tourActive||document.getElementById('bd-dialog')||document.body.classList.contains('bd-landing-open'))return;
+      if(performance.now()-lastHintAt<180000){reset();return;}
+      lastHintAt=performance.now();bubble.textContent=['Got a thought to write?','Need a block to add?'][hintIndex++%2];bubble.hidden=false;
+      const rect=fab.getBoundingClientRect(),left=Math.max(8,Math.min(innerWidth-bubble.offsetWidth-8,rect.left+rect.width/2-bubble.offsetWidth/2));
+      bubble.style.left=left+'px';bubble.style.top=Math.max(8,rect.top-bubble.offsetHeight-12)+'px';bubble.style.setProperty('--hint-arrow',rect.left+rect.width/2-left+'px');
+      idleDismissTimer=setTimeout(reset,7000);
+    },45000);}
+    if(window.bedoIdleController)window.bedoIdleController.abort();const controller=new AbortController();window.bedoIdleController=controller;
+    for(const event of ['pointerdown','pointermove','keydown','scroll','visibilitychange'])document.addEventListener(event,reset,{passive:true,capture:true,signal:controller.signal});
+    reset();
   }
   function landing() {
     const screen=document.getElementById('bedo-login');if(!screen)return;

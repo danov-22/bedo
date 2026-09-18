@@ -88,3 +88,15 @@ body.bd-landing-open{overflow:hidden;height:100dvh}body.bd-landing-open #root{di
 :root[data-mode=dark] .lavender{background:#6537c6}
 :root[data-mode=dark] .peach{background:#a94300}
 :root[data-mode=dark] .blue{background:#1555cd}
+/* One scrolling surface for calendar, day, and week. */
+.bd-preview{transform:none}
+.bd-timeline,.bd-week-grid .bd-timeline{height:auto;overflow:visible}
+.bd-toolbar{position:sticky;top:var(--bd-header-height,72px);z-index:25;background:var(--bg);padding:10px 0}
+.bd-month-section{margin:24px 0}
+.bd-month-stream{overflow-anchor:none}
+.bd-month-section h2{font-size:18px;margin-bottom:14px}
+.bd-month-stream>.bd-secondary{font-size:12px}
+.mint{background:#00843d;color:#fff}.lavender{background:#7042d4;color:#fff}.peach{background:#f2cc21;color:#302800}.blue{background:#165bdf;color:#fff}
+:root[data-mode=dark] .peach{background:#f2cc21;color:#302800}
+.bd-idle-hint{position:fixed;z-index:46;max-width:220px;padding:12px 16px;border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--text);font-size:12px;font-weight:600;box-shadow:var(--shadow);pointer-events:none}
+.bd-idle-hint:after{content:'';position:absolute;left:var(--hint-arrow,50%);bottom:-6px;width:10px;height:10px;transform:translateX(-50%) rotate(45deg);background:var(--card);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
