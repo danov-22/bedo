@@ -12,5 +12,8 @@ const {chromium}=require(process.env.BEDO_PLAYWRIGHT_PATH);
  await page.locator('.bd-hero-actions a[href="/login"]').click();await page.waitForURL('**/login');await page.waitForTimeout(500);
  const state=await page.evaluate(()=>({initialized:window.googleInitializeCount||0,hasGoogle:Boolean(window.google),title:document.title,scripts:[...document.scripts].map(s=>s.src)}));assert.equal(state.initialized,1,`Google Identity initializes after an intentional sign-in action (${JSON.stringify(state)}; ${errors.join('; ')})`);
  assert.equal(await page.getByText('Google button').count(),1,'the deliberate login page renders the Google button');
+ await page.evaluate(()=>{localStorage.setItem('bedo-auth-user',JSON.stringify({sub:'returning-user',email:'returning@example.test'}));localStorage.setItem('bedo-auth-session','session');localStorage.setItem('bedo-tour-state',JSON.stringify({completed:true}));});
+ await page.goto(base+'/');await page.waitForURL('**/?app=1');await page.locator('.bd-month').first().waitFor();
+ assert.equal(await page.locator('#bedo-login').count(),0,'a returning signed-in user opens the app instead of the sign-in landing');
  await browser.close();console.log('PASS demo exit stays on landing and Google sign-in is intentional');
 })().catch(error=>{console.error(error);process.exit(1)});

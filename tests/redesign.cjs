@@ -16,6 +16,8 @@ const base = process.env.BEDO_TEST_BASE || 'http://localhost:8765';
       assert.equal(await page.title(),'bedo');
       assert.equal(await page.locator('#bedo-intro-title').textContent(),'Which one are you?');
       assert.equal(await page.locator('.bd-support h3').textContent(),'Support with Trakteer or Ko-fi');
+      assert.equal(await page.locator('.bd-support-actions a').evaluateAll(els=>els.map(el=>el.textContent.trim()).join('')),'','support buttons use clean logo marks instead of text');
+      assert.equal(await page.locator('.bd-support-logo').count(),2);
       assert.equal(await page.locator('.bd-support>small').textContent(),'Thank you for your support!');
       assert(Number.parseFloat(await page.locator('.bd-support>small').evaluate(el=>getComputedStyle(el).fontSize))>=13);
       await page.evaluate(()=>localStorage.setItem('bedo-theme',JSON.stringify('dark')));await page.reload({waitUntil:'domcontentloaded'});

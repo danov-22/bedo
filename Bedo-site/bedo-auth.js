@@ -125,7 +125,7 @@
     prepareDemo();
     location.href = "/?demo=1";
   }
-  window.BedoDemo = { enter: enterDemo, refresh: refreshDemo, exit: function () { restoreDemo(); location.href = "/"; } };
+  window.BedoDemo = { enter: enterDemo, refresh: refreshDemo, exit: function () { restoreDemo(); location.href = currentUser() ? "/?app=1" : "/"; } };
   function loginScreen(configured) {
     if (document.getElementById("bedo-login")) return;
     const screen = document.createElement("main");
@@ -192,6 +192,7 @@
   if (!params.has("demo") && localStorage.getItem(demoBackupKey)) restoreDemo();
   const user = currentUser();
   const publicLanding = !params.has("share") && !params.has("app") && !params.has("demo");
+  if (user && publicLanding && location.pathname === "/") { location.replace("/?app=1"); return; }
   if (!params.has("share") && (location.pathname === "/login" || publicLanding || (!user && !params.has("demo")))) {
     loginScreen(Boolean(clientId));
     if (user && location.pathname !== "/login") {

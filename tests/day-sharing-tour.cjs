@@ -33,7 +33,7 @@ const {chromium}=require(process.env.BEDO_PLAYWRIGHT_PATH);
  for(let i=0;i<10;i++){
    await page.waitForTimeout(100);
    if(i===1)assert((await page.locator('.bd-tour-layer').textContent()).includes('Swipe left or right'));
-   if(i===8)assert((await page.locator('.bd-tour-layer').textContent()).includes('live, read-only web link'));
+   if(i===8){assert((await page.locator('.bd-tour-layer').textContent()).includes('live, read-only web link'));assert(await page.locator('#bd-sharing-card').isVisible(),'sharing tour step opens and highlights the Sharing panel');}
    const bounds=await page.locator('.bd-tour-layer .bd-dialog').boundingBox();
    assert(bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=361&&bounds.y+bounds.height<=641,'tour panel fits mobile screen');
    assert(await page.locator('.bd-tour-frame').count(),'target is highlighted');
