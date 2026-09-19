@@ -18,6 +18,7 @@ const base=process.env.BEDO_TEST_BASE||'http://localhost:8765';
   await context.route('https://www.googleapis.com/upload/drive/v3/files/drive-file?uploadType=media',async r=>{driveWrites++;cloud=r.request().postDataJSON();await r.fulfill({contentType:'application/json',body:'{}'});});
   await page.goto(base+'/login',{waitUntil:'domcontentloaded'});await page.getByText('Test Google login',{exact:true}).click();await page.waitForURL('**/?app=1');
   await page.waitForFunction(()=>JSON.parse(localStorage.getItem('bedo-ideas')||'[]')[0]?.id==='cloud-note');
+  await page.locator('[data-action=calendar-fresh]').click();
   assert.equal(privateBackendWrites,0,'private schedules never go to the app owner backend');
   await page.locator('[data-action=tour-skip]').click();
   await page.locator('#bd-fab').click();await page.locator('[name=text]').fill('Saved in my Drive');await page.locator('#bd-note-form .bd-primary').click();
@@ -30,7 +31,7 @@ const base=process.env.BEDO_TEST_BASE||'http://localhost:8765';
   await context.close();
   const localContext=await browser.newContext({serviceWorkers:'block'}),local=await localContext.newPage();
   await localContext.route('**/auth-config.js',r=>r.fulfill({contentType:'application/javascript',body:'window.BEDO_GOOGLE_CLIENT_ID="";'}));
-  await local.goto(base+'/?app=1',{waitUntil:'domcontentloaded'});await local.evaluate(()=>{localStorage.setItem('bedo-auth-user',JSON.stringify({sub:'local'}));localStorage.setItem('bedo-auth-session','session');localStorage.setItem('bedo-blocks',JSON.stringify([{id:'keep-private'}]));});await local.reload({waitUntil:'domcontentloaded'});
+  await local.goto(base+'/?app=1',{waitUntil:'domcontentloaded'});await local.evaluate(()=>{localStorage.setItem('bedo-auth-user',JSON.stringify({sub:'local'}));localStorage.setItem('bedo-auth-session','session');localStorage.setItem('bedo-calendar-choice','fresh');localStorage.setItem('bedo-blocks',JSON.stringify([{id:'keep-private'}]));});await local.reload({waitUntil:'domcontentloaded'});
   await local.locator('.bd-month').first().waitFor();assert.equal(await local.evaluate(()=>JSON.parse(localStorage.getItem('bedo-blocks'))[0].id),'keep-private');
   await localContext.close();console.log('PASS user-owned Drive restore/save, no private backend writes, merged Account data and fast local fallback');
  }finally{await browser.close();}

@@ -9,7 +9,7 @@
   const demoBackupKey = "bedo-demo-backup";
   const defaultApiUrl = window.BEDO_API_URL;
   const driveScope = "https://www.googleapis.com/auth/drive.appdata";
-  let driveToken = null, driveTokenExpires = 0, driveRequest = null;
+  let driveToken = null, driveTokenExpires = 0, driveRequest = null, calendarToken = null, calendarTokenExpires = 0, calendarRequest = null;
   function requestDriveAccess(interactive) {
     if (driveToken && Date.now() < driveTokenExpires - 60000) return Promise.resolve(driveToken);
     if (driveRequest) return driveRequest;
@@ -25,6 +25,16 @@
       };begin();
     });
     return driveRequest;
+  }
+  function requestCalendarAccess() {
+    if (calendarToken && Date.now() < calendarTokenExpires - 60000) return Promise.resolve(calendarToken);
+    if (calendarRequest) return calendarRequest;
+    calendarRequest = new Promise((resolve,reject)=>{
+      if(!window.google?.accounts?.oauth2){calendarRequest=null;reject(new Error('Google Calendar authorization could not load.'));return;}
+      const client=google.accounts.oauth2.initTokenClient({client_id:clientId,scope:'https://www.googleapis.com/auth/calendar.readonly',callback:response=>{calendarRequest=null;if(response.error||!response.access_token){reject(new Error(response.error_description||'Google Calendar access was not granted.'));return;}calendarToken=response.access_token;calendarTokenExpires=Date.now()+Number(response.expires_in||3600)*1000;resolve(calendarToken);},error_callback:()=>{calendarRequest=null;reject(new Error('Google Calendar authorization was cancelled.'));}});
+      client.requestAccessToken({prompt:'consent'});
+    });
+    return calendarRequest;
   }
 
   function decodeCredential(credential) {
@@ -186,7 +196,7 @@
     switchWorkspace(""); window.google?.accounts?.id?.disableAutoSelect(); if (driveToken) window.google?.accounts?.oauth2?.revoke(driveToken); driveToken=null;
     localStorage.removeItem(credentialKey); localStorage.removeItem(userKey); localStorage.removeItem(sessionKey); localStorage.removeItem("bedo-welcome-complete"); location.href = "/login";
   }
-  window.BedoAuth = { signOut, switchAccount, currentUser, requestDriveAccess, hasDriveAccess:()=>Boolean(driveToken&&Date.now()<driveTokenExpires-60000) };
+  window.BedoAuth = { signOut, switchAccount, currentUser, requestDriveAccess, requestCalendarAccess, hasDriveAccess:()=>Boolean(driveToken&&Date.now()<driveTokenExpires-60000) };
   const params = new URLSearchParams(location.search);
   if (params.has("demo")) prepareDemo();
   if (!params.has("demo") && localStorage.getItem(demoBackupKey)) restoreDemo();

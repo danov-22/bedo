@@ -108,6 +108,7 @@
     Array.from(form.children).forEach(el=>{if(el.classList.contains('bd-primary'))return;(el.matches('label')?personal:appearance).append(el);});
     form.prepend(personal,appearance);personal.hidden=settingsSection!=='profile';appearance.hidden=settingsSection!=='appearance';form.hidden=!['profile','appearance'].includes(settingsSection);
     document.getElementById('bd-account-card')?.append(document.getElementById('bd-saving-card'));
+    const account=document.getElementById('bd-account-card');if(account&&!demo&&!account.querySelector('[data-action=calendar-choice]')){const button=document.createElement('button');button.className='bd-secondary';button.dataset.action='calendar-choice';button.textContent='Import Google Calendar';account.append(button);}
     const cards={'account':'bd-account-card','guide':'bd-app-guide'};
     Object.entries(cards).forEach(([section,id])=>{document.getElementById(id).hidden=settingsSection!==section;});
     let sharing=Array.from(content.children).find(el=>el.querySelector('[data-action=share]'));
@@ -248,6 +249,8 @@
     }catch(error){status.textContent=error.message;}
   }
   function dialog(content) { document.getElementById('bd-dialog')?.remove(); const layer=document.createElement('div');layer.id='bd-dialog';layer.className='bd-dialog-layer';layer.innerHTML=`<section class="bd-dialog" role="dialog" aria-modal="true"><button class="bd-dialog-close" data-action="close" aria-label="Close dialog">×</button>${content}</section>`;document.body.appendChild(layer);layer.querySelector('input,textarea')?.focus(); }
+  function calendarChoiceDialog(firstRun=false){dialog(`<span class="bd-kicker">OPTIONAL GOOGLE CALENDAR IMPORT</span><h2>Bring your existing schedule?</h2><p>Import timed events from your primary Google Calendar for the next three months, or start with a clean BEDO. This is a one-time copy—not two-way synchronization. BEDO requests read-only access only if you import.</p><button class="bd-primary" data-action="calendar-import">Use my Google Calendar</button><button class="bd-secondary" data-action="calendar-fresh">Start fresh</button><p id="bd-calendar-import-status" role="status"></p>`);document.getElementById('bd-dialog').dataset.firstRun=String(firstRun);}
+  function continueFirstRun(){document.getElementById('bd-dialog')?.remove();if(!read('bedo-tour-state',{}).completed)startTour();}
   function blockDialog(id, text='') {
     const b=blocks.find(b=>b.id===id),day=b?.date||dateKey(selected);
     dialog(`<h2>${b?'Edit this block':'Make a little room.'}</h2><p>${b?'Only this occurrence will change.':'Give something important a place in your day.'}</p><form id="bd-block-form" data-id="${esc(id||'')}"><label>What’s the plan?<input name="title" required maxlength="120" value="${esc(b?.title||text)}" placeholder="A little deep work"></label><label>Day<input name="date" type="date" required value="${inputDate(day)}"></label><div class="bd-form-row"><label>Start time<input name="start" type="time" step="300" required value="${time(b?.start??9)}"></label><label>Minutes<input name="minutes" type="number" min="5" max="1440" step="5" required value="${Math.round((b?.duration??1)*60)}"></label></div><label>Category<select name="category">${[...new Set([...categories,category(b||{})])].map(c=>`<option ${category(b||{})===c?'selected':''}>${esc(c)}</option>`).join('')}</select></label>${b?'<p class="bd-help">To create a new repeat series, add a new block. Dragging or editing does not alter other occurrences.</p>':'<label>Repeat<select name="repeat"><option value="none">Does not repeat</option><option value="daily">Daily · next 4 weeks</option><option value="weekdays">Weekdays · next 4 weeks</option><option value="weekly">Weekly · next 4 weeks</option></select></label>'}<div class="bd-form-actions">${b?`<button type="button" class="bd-danger" data-delete-block="${esc(id)}">Delete this block</button>`:''}<button class="bd-primary">Save block</button></div><p class="bd-form-error" role="alert"></p></form>`);
@@ -305,6 +308,9 @@
     if(action==='close')document.getElementById('bd-dialog')?.remove();
     if(action==='exit')window.BedoDemo?.exit();if(action==='switch')window.BedoAuth?.switchAccount();if(action==='signout')window.BedoAuth?.signOut();
     if(action==='share')shareDialog();if(action==='publish')publishShare();if(action==='unpublish')publishShare(true);
+    if(action==='calendar-choice')calendarChoiceDialog(false);
+    if(action==='calendar-fresh'){localStorage.setItem('bedo-calendar-choice','fresh');continueFirstRun();}
+    if(action==='calendar-import'){const status=document.getElementById('bd-calendar-import-status'),firstRun=document.getElementById('bd-dialog')?.dataset.firstRun==='true';b.disabled=true;status.textContent='Opening Google Calendar permission…';try{const result=await window.BedoCalendar.importEvents();status.textContent=`Imported ${result.imported} timed event${result.imported===1?'':'s'}. ${result.skipped?'All-day, duplicate, or unsupported events were skipped.':''}`;setTimeout(()=>{if(firstRun)continueFirstRun();else{document.getElementById('bd-dialog')?.remove();openWorkspace();}},700);}catch(error){status.textContent=error.message;b.disabled=false;}}
     if(action==='theme'){write('bedo-theme',read('bedo-theme','light')==='dark'?'light':'dark');render();}
     if(action==='today'){selected=new Date();month=new Date();render();}
     if(action==='prev'||action==='next'){const delta=action==='prev'?-1:1;if(view==='month')month=new Date(month.getFullYear(),month.getMonth()+delta,1);else selected.setDate(selected.getDate()+delta*(view==='week'?7:1));render();}
@@ -438,6 +444,7 @@
   }
   function openWorkspace(){
     blocks=read('bedo-blocks',[]);ideas=read('bedo-ideas',[]);profile=read('bedo-profile',{});categories=profile.categories||['Personal','Work','Wellness','Study'];render();landing();
+    if(!demo&&!tourActive&&localStorage.getItem('bedo-auth-session')&&!localStorage.getItem('bedo-calendar-choice')&&!document.getElementById('bedo-login')){calendarChoiceDialog(true);return;}
     if(!demo&&!tourActive&&localStorage.getItem('bedo-auth-session')&&!read('bedo-tour-state',{}).completed&&!document.getElementById('bedo-login'))startTour();
   }
   function loadingFailed(){root.innerHTML='<main class="bd-shared"><h1>Your device copy is safe.</h1><p>We could not open your saved cloud workspace. Retry before editing so we do not overwrite it with an empty plan.</p><button class="bd-primary" id="bd-retry-workspace">Retry</button><button class="bd-secondary" data-action="export">Download device copy</button><button class="bd-secondary" data-action="signout">Sign out</button></main>';document.getElementById('bd-retry-workspace').onclick=async()=>{if(await window.BedoSync.initialize())openWorkspace();else loadingFailed();};}

@@ -4,7 +4,7 @@ The frontend reads your OAuth **Web client ID** from `Bedo-site/auth-config.js`.
 
 1. Create or select a Google Cloud project, configure Google Auth Platform branding/audience, and create a Web application OAuth client.
 2. Add `https://b-do.vercel.app` as an Authorized JavaScript origin. For local testing, add `http://localhost:8765`. While the app is in Testing, add your Gmail account as a test user.
-3. Enable the **Google Drive API** and add `https://www.googleapis.com/auth/drive.appdata` to the OAuth consent configuration. This lets BEDO access only its own hidden app-data folder.
+3. Enable the **Google Drive API** and **Google Calendar API**. Add `https://www.googleapis.com/auth/drive.appdata` and `https://www.googleapis.com/auth/calendar.readonly` to the OAuth consent configuration. Calendar access is requested separately and only if a user chooses to import existing events.
 4. Put the Web client ID ending in `.apps.googleusercontent.com` in `Bedo-site/auth-config.js`.
 5. In the existing Sheet's Apps Script project, replace the code with this repository's `Google-Apps-Script/Code.gs`.
 6. Under Project Settings > Script properties, set `OAUTH_CLIENT_ID` to the same Web client ID. Leave `SESSION_SECRET` alone; the script creates it automatically.
