@@ -1,47 +1,22 @@
-/* Authenticated, local-first saving for the current Google workspace. */
+/* Local-first sync to a private app-data file owned by the signed-in Google account. */
 (function(){
 'use strict';
 if(new URLSearchParams(location.search).has('demo'))return;
-const url=localStorage.getItem('bedo-sync-url')||window.BEDO_API_URL;
-const read=(k,f)=>{try{return JSON.parse(localStorage.getItem(k))??f;}catch(_){return f;}};
+const api=localStorage.getItem('bedo-sync-url')||window.BEDO_API_URL,fileName='bedo-data.json';
+const read=(k,f)=>{try{return JSON.parse(localStorage.getItem(k))??f;}catch{return f;}};
 const keys={blocks:'bedo-blocks',ideas:'bedo-ideas',dailyNotes:'bedo-daily-notes',routines:'bedo-routines'};
-let status={state:'local',message:'Saved on this device. Sign in with Google for cloud saving.'},initialized=false,busy=false,timer;
+let status={state:'local',message:'Saved on this device.'},initialized=false,busy=false,timer,fileId=null;
 function notify(state,message){status={state,message,lastSavedAt:localStorage.getItem('bedo-last-sync')};dispatchEvent(new CustomEvent('bedo-sync-status'));}
 function data(){return {...Object.fromEntries(Object.entries(keys).map(([k,v])=>[k,read(v,[])])),settings:[{id:'preferences',theme:read('bedo-theme','light'),profile:read('bedo-profile',{}),tour:read('bedo-tour-state',null)}]};}
-async function request(action,payload){
-const session=localStorage.getItem('bedo-auth-session');if(!session)throw Error('Sign in with Google to save online.');
-const response=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,session,...payload}),signal:AbortSignal.timeout(25000)});
-const result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'Cloud saving is unavailable.');return result;
-}
-async function flush(){
-if(!initialized||busy||!localStorage.getItem('bedo-auth-session')||localStorage.getItem('bedo-sync-pending')!=='true')return;
-if(!navigator.onLine){notify('pending','Saved on this device. Waiting for internet to save online.');return;}
-busy=true;const snapshot=data(),signature=JSON.stringify(snapshot);notify('saving','Saved on this device. Saving online…');
-try{const result=await request('save',{data:snapshot});localStorage.setItem('bedo-last-sync',result.savedAt||new Date().toISOString());
-if(JSON.stringify(data())===signature){localStorage.removeItem('bedo-sync-pending');notify('saved','Schedules and Brainstorm notes are saved online.');}
-else notify('pending','New edits are saved on this device. Saving online shortly…');
-}catch(error){notify('error','Saved on this device only. '+error.message+' Retry when connected.');}
-finally{busy=false;if(status.state==='pending'&&navigator.onLine)timer=setTimeout(flush,800);}
-}
-function changed(){localStorage.setItem('bedo-sync-pending','true');notify('pending',localStorage.getItem('bedo-auth-session')?'Saved on this device. Waiting to save online…':'Saved on this device. Sign in with Google for cloud saving.');clearTimeout(timer);timer=setTimeout(flush,700);}
-async function initialize(){
-if(!localStorage.getItem('bedo-auth-session')){initialized=true;return true;}
-if(!navigator.onLine&&localStorage.getItem('bedo-last-sync')){initialized=true;notify('pending','Opened your device copy offline. Changes will save online when connected.');return true;}
-notify('loading','Opening your saved workspace…');
-try{const cloud=await request('load'),local=data(),hasCloud=Object.keys(keys).some(k=>(cloud[k]||[]).length)||(cloud.settings||[]).length;
-if(hasCloud&&localStorage.getItem('bedo-sync-pending')!=='true'){
-if(local.blocks.length||local.ideas.length)localStorage.setItem('bedo-recovery-'+read('bedo-auth-user',{}).sub,JSON.stringify(local));
-Object.entries(keys).forEach(([k,v])=>localStorage.setItem(v,JSON.stringify(cloud[k]||[])));
-if(cloud.savedAt)localStorage.setItem('bedo-last-sync',cloud.savedAt);
-const prefs=(cloud.settings||[]).find(s=>s.id==='preferences');
-if(prefs){if(prefs.profile)localStorage.setItem('bedo-profile',JSON.stringify(prefs.profile));if(prefs.theme)localStorage.setItem('bedo-theme',JSON.stringify(prefs.theme));if(prefs.tour)localStorage.setItem('bedo-tour-state',JSON.stringify(prefs.tour));}
-}
-initialized=true;if(!hasCloud||localStorage.getItem('bedo-sync-pending')==='true'){changed();await flush();}else notify('saved','Your saved schedules and Brainstorm notes are restored.');
-return true;
-}catch(error){notify('error','Could not open your cloud workspace. '+error.message+' Local data is safe.');return false;}
-}
-window.BedoSync={getStatus:()=>status,changed,saveNow:flush,initialize,exportData:data};
-window.BedoSync.ready=initialize();
-addEventListener('online',()=>initialized?flush():initialize().then(ok=>{if(ok)dispatchEvent(new Event('bedo-workspace-ready'));}));
-setInterval(()=>{if(initialized)flush();},30000);
+async function drive(path,options={}){const interactive=Boolean(options.interactive);delete options.interactive;const token=await window.BedoAuth.requestDriveAccess(interactive),response=await fetch('https://www.googleapis.com'+path,{...options,headers:{...(options.headers||{}),Authorization:'Bearer '+token},signal:AbortSignal.timeout(20000)});if(!response.ok){const body=await response.json().catch(()=>({}));throw Error(body.error?.message||'Google Drive is unavailable.');}return response;}
+async function locate(){if(fileId)return fileId;const result=await (await drive('/drive/v3/files?spaces=appDataFolder&pageSize=10&fields=files(id,name,modifiedTime)&q='+encodeURIComponent("name='"+fileName+"' and trashed=false"))).json();fileId=result.files?.[0]?.id||null;return fileId;}
+async function loadDrive(){const id=await locate();if(!id)return null;return (await drive('/drive/v3/files/'+encodeURIComponent(id)+'?alt=media')).json();}
+async function saveDrive(snapshot){const id=await locate();if(!id){const form=new FormData();form.append('metadata',new Blob([JSON.stringify({name:fileName,parents:['appDataFolder']})],{type:'application/json'}));form.append('file',new Blob([JSON.stringify(snapshot)],{type:'application/json'}));fileId=(await (await drive('/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',body:form})).json()).id;}else await drive('/upload/drive/v3/files/'+encodeURIComponent(id)+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(snapshot)});return new Date().toISOString();}
+async function updateLiveShare(snapshot){const share=read('bedo-share',{}),session=localStorage.getItem('bedo-auth-session');if(!share.token||!share.live||!session)return;const day=key=>{const [y,m,d]=String(key).split('-').map(Number);return Date.UTC(y,m-1,d);},from=day(share.from),to=day(share.to),inRange=b=>day(b.date)>=from&&day(b.date)<=to,response=await fetch(api,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'publish',session,token:share.token,data:{profile:snapshot.settings?.[0]?.profile||{},blocks:snapshot.blocks.filter(inRange),from:share.from,to:share.to}})}),result=await response.json();if(!result.ok)throw Error(result.error||'Live sharing could not update.');}
+async function flush(){if(!initialized||busy||!localStorage.getItem('bedo-auth-session')||localStorage.getItem('bedo-sync-pending')!=='true')return;if(!navigator.onLine){notify('pending','Saved on this device. Waiting for internet.');return;}busy=true;const snapshot=data(),signature=JSON.stringify(snapshot);notify('saving','Saved on this device. Saving to your Google Drive…');try{await updateLiveShare(snapshot);const savedAt=await saveDrive(snapshot);localStorage.setItem('bedo-last-sync',savedAt);if(JSON.stringify(data())===signature){localStorage.removeItem('bedo-sync-pending');notify('saved','Saved privately in your Google Drive.');}else notify('pending','New edits are waiting to save.');}catch(error){notify('error','Saved on this device only. '+error.message);}finally{busy=false;if(status.state==='pending')timer=setTimeout(flush,900);}}
+function changed(){localStorage.setItem('bedo-sync-pending','true');notify('pending','Saved on this device. Waiting to save to your Google Drive…');clearTimeout(timer);timer=setTimeout(flush,700);}
+function restore(cloud){Object.entries(keys).forEach(([k,v])=>localStorage.setItem(v,JSON.stringify(cloud[k]||[])));const prefs=(cloud.settings||[]).find(s=>s.id==='preferences');if(prefs){if(prefs.profile)localStorage.setItem('bedo-profile',JSON.stringify(prefs.profile));if(prefs.theme)localStorage.setItem('bedo-theme',JSON.stringify(prefs.theme));if(prefs.tour)localStorage.setItem('bedo-tour-state',JSON.stringify(prefs.tour));}}
+async function initialize(interactive=false){if(!localStorage.getItem('bedo-auth-session')){initialized=true;return true;}initialized=true;notify('loading','Connecting to your private Google Drive data…');try{await window.BedoAuth.requestDriveAccess(interactive);const cloud=await loadDrive(),local=data(),hasCloud=Boolean(cloud&&(Object.keys(keys).some(k=>(cloud[k]||[]).length)||(cloud.settings||[]).length));if(hasCloud&&localStorage.getItem('bedo-sync-pending')!=='true'){if(local.blocks.length||local.ideas.length)localStorage.setItem('bedo-recovery-'+read('bedo-auth-user',{}).sub,JSON.stringify(local));restore(cloud);}if(!hasCloud||localStorage.getItem('bedo-sync-pending')==='true'){changed();await flush();}else notify('saved','Restored from your private Google Drive data.');dispatchEvent(new Event('bedo-workspace-ready'));return true;}catch(error){notify('permission','Your device copy is ready. Connect Google Drive in Account to save it privately.');return !interactive;}}
+async function connect(){return initialize(true);}
+window.BedoSync={getStatus:()=>status,changed,saveNow:flush,initialize,connect,exportData:data};window.BedoSync.ready=initialize(false);addEventListener('online',flush);setInterval(flush,30000);
 })();

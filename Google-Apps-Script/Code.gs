@@ -1,12 +1,11 @@
 /**
- * bedo authenticated Google Sheets storage.
+ * bedo authenticated sessions and explicitly public schedule sharing.
  * See GOOGLE-LOGIN.md for setup. Configure OAUTH_CLIENT_ID and redeploy.
- * Private POST operations validate Google credentials or a signed session.
- * Only explicitly published schedule snapshots are publicly readable.
- * The attached Sheet is owned by the deploying account, not each app user.
+ * Private schedules and notes live in each user's Google Drive app-data folder.
+ * This Sheet stores signed sessions and only explicitly published date ranges.
  */
 
-var SHEET_NAMES = ["Blocks", "Ideas", "DailyNotes", "Routines", "Settings", "PublicSchedules"];
+var SHEET_NAMES = ["PublicSchedules"];
 var MAX_CELL_LENGTH = 45000;
 
 function doGet(e) {
@@ -34,29 +33,22 @@ function doPost(e) {
       return jsonOutput_(createSession_(String(body.credential || "")));
     }
     var userId = resolveUserId_(body);
-    if (body.action === "load") {
-      return jsonOutput_(loadData_(userId));
-    }
-    if (body.action === "save") {
-      return jsonOutput_(saveData_(userId, body.data || {}));
-    }
+    if (body.action === "load" || body.action === "save") throw new Error("Private data is stored in the user's Google Drive, not this Sheet.");
     if (body.action === "publish") {
-      return jsonOutput_(publishSchedule_(userId, body.data || {}));
+      return jsonOutput_(publishSchedule_(userId, body.data || {}, String(body.token || "")));
     }
     if (body.action === "unpublish") {
       return jsonOutput_(unpublishSchedule_(userId, String(body.token || "")));
     }
-    return jsonOutput_({ ok: false, error: "Use action 'load' or 'save'." });
+    return jsonOutput_({ ok: false, error: "Unknown action." });
   } catch (error) {
     return jsonOutput_({ ok: false, error: String(error.message || error) });
   }
 }
 
 /**
- * When the OAUTH_CLIENT_ID script property is configured, every load/save
- * request must carry a current Google ID token. The stable Google `sub` claim
- * becomes the storage key, so callers cannot select another user's rows.
- * Leave the property empty while using the original single-user deployment.
+ * Publishing and disabling a link require a signed session. The stable Google
+ * `sub` claim owns that link, so callers cannot replace another user's share.
  */
 function resolveUserId_(body) {
   var clientId = PropertiesService.getScriptProperties().getProperty("OAUTH_CLIENT_ID");
@@ -114,56 +106,17 @@ function setupSheets() {
   return jsonOutput_({ ok: true, message: "bedo tabs are ready." });
 }
 
-function loadData_(userId) {
-  var lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-  var sheets = getOrCreateSheets_();
-  var data = {
-    ok: true,
-    userId: userId,
-    blocks: readRows_(sheets.Blocks, userId),
-    ideas: readRows_(sheets.Ideas, userId),
-    dailyNotes: readRows_(sheets.DailyNotes, userId),
-    routines: readRows_(sheets.Routines, userId),
-    settings: readRows_(sheets.Settings, userId)
-  };
-  var timestamps = [];
-  ["Blocks", "Ideas", "DailyNotes", "Routines", "Settings"].forEach(function(name) {
-    sheets[name].getDataRange().getValues().slice(1).forEach(function(row) { if (String(row[0]) === userId && row[3]) timestamps.push(String(row[3])); });
-  });
-  data.savedAt = timestamps.sort().pop() || null;
-  return data;
-  } finally { lock.releaseLock(); }
-}
-
-function saveData_(userId, data) {
-  SHEET_NAMES.slice(0, 5).forEach(function(name) {
-    var records = data[{ Blocks: 'blocks', Ideas: 'ideas', DailyNotes: 'dailyNotes', Routines: 'routines', Settings: 'settings' }[name]] || [];
-    if (!Array.isArray(records)) throw new Error("Invalid records.");
-    records.forEach(function(record) { if (JSON.stringify(record).length > MAX_CELL_LENGTH) throw new Error("A bedo record is too large for Google Sheets."); });
-  });
-  var lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-  var sheets = getOrCreateSheets_();
-  writeRows_(sheets.Blocks, userId, data.blocks || []);
-  writeRows_(sheets.Ideas, userId, data.ideas || []);
-  writeRows_(sheets.DailyNotes, userId, data.dailyNotes || []);
-  writeRows_(sheets.Routines, userId, data.routines || []);
-  writeRows_(sheets.Settings, userId, data.settings || []);
-  return { ok: true, userId: userId, savedAt: new Date().toISOString() };
-  } finally { lock.releaseLock(); }
-}
-
-function publishSchedule_(userId, data) {
+function publishSchedule_(userId, data, requestedToken) {
   var sheet = getOrCreateSheets_().PublicSchedules;
-  deleteUserRows_(sheet, userId, "");
-  var token = Utilities.getUuid().replace(/-/g, "") + Utilities.getUuid().replace(/-/g, "");
-  var safeData = { profile: data.profile || {}, blocks: Array.isArray(data.blocks) ? data.blocks : [], dailyNotes: Array.isArray(data.dailyNotes) ? data.dailyNotes : [] };
+  var token = String(requestedToken || "");
+  var values = sheet.getDataRange().getValues(), ownedRow = 0;
+  if (token) for (var i = 1; i < values.length; i++) if (String(values[i][0]) === userId && String(values[i][1]) === token) ownedRow = i + 1;
+  if (!ownedRow) { deleteUserRows_(sheet, userId, ""); token = Utilities.getUuid().replace(/-/g, "") + Utilities.getUuid().replace(/-/g, ""); }
+  var safeData = { profile: data.profile || {}, blocks: Array.isArray(data.blocks) ? data.blocks : [], from: String(data.from || ""), to: String(data.to || "") };
   var payload = JSON.stringify(safeData);
   if (payload.length > MAX_CELL_LENGTH) throw new Error("This schedule is too large to share. Share fewer notes or blocks.");
-  sheet.appendRow([userId, token, payload, new Date().toISOString()]);
+  if (ownedRow) sheet.getRange(ownedRow, 1, 1, 4).setValues([[userId, token, payload, new Date().toISOString()]]);
+  else sheet.appendRow([userId, token, payload, new Date().toISOString()]);
   return { ok: true, token: token };
 }
 
@@ -204,41 +157,6 @@ function getOrCreateSheets_() {
     sheets[name] = sheet;
   });
   return sheets;
-}
-
-function readRows_(sheet, userId) {
-  var values = sheet.getDataRange().getValues();
-  if (values.length < 2) return [];
-  return values.slice(1)
-    .filter(function(row) { return String(row[0]) === userId && row[2]; })
-    .map(function(row) {
-      try {
-        return JSON.parse(String(row[2]));
-      } catch (error) {
-        return { id: String(row[1]), raw: String(row[2]) };
-      }
-    });
-}
-
-function writeRows_(sheet, userId, records) {
-  var values = sheet.getDataRange().getValues();
-  var rowsToDelete = [];
-  for (var rowIndex = values.length - 1; rowIndex >= 1; rowIndex--) {
-    if (String(values[rowIndex][0]) === userId) rowsToDelete.push(rowIndex + 1);
-  }
-  rowsToDelete.forEach(function(rowNumber) { sheet.deleteRow(rowNumber); });
-
-  var now = new Date().toISOString();
-  var rows = records.map(function(record, index) {
-    var payload = JSON.stringify(record);
-    if (payload.length > MAX_CELL_LENGTH) {
-      throw new Error("A bedo record is too large for Google Sheets.");
-    }
-    return [userId, String(record.id || index + 1), payload, now];
-  });
-  if (rows.length) {
-    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 4).setValues(rows);
-  }
 }
 
 function jsonOutput_(payload) {

@@ -1,0 +1,26 @@
+const assert=require('node:assert/strict');
+const {chromium}=require(process.env.BEDO_PLAYWRIGHT_PATH);
+(async()=>{
+ const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
+ const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true}),page=await context.newPage();
+ let publicData=null,publishes=0;const token='b'.repeat(64);
+ await context.route('**/auth-config.js',r=>r.fulfill({contentType:'application/javascript',body:'window.BEDO_GOOGLE_CLIENT_ID="";'}));
+ await context.route('https://accounts.google.com/gsi/client',r=>r.fulfill({body:''}));
+ await context.route('https://script.google.com/**',async r=>{if(r.request().method()==='GET')return r.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,data:publicData})});const body=r.request().postDataJSON();if(body.action==='publish'){publishes++;publicData=body.data;return r.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,token})});}return r.fulfill({contentType:'application/json',body:'{"ok":true}'});});
+ await page.goto((process.env.BEDO_TEST_BASE||'http://localhost:8766')+'/?app=1',{waitUntil:'domcontentloaded'});
+ const today=await page.evaluate(()=>{const d=new Date(),key=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;localStorage.setItem('bedo-auth-user',JSON.stringify({sub:'share-test',email:'me@example.test'}));localStorage.setItem('bedo-auth-session','session');localStorage.setItem('bedo-tour-state',JSON.stringify({completed:true}));localStorage.setItem('bedo-blocks',JSON.stringify([{id:'visible',title:'Original title',date:key,start:9,duration:1,category:'Personal'},{id:'private-day',title:'Not shared',date:`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()+5}`,start:10,duration:1,category:'Work'}]));return key;});
+ await page.reload({waitUntil:'domcontentloaded'});await page.locator('.bd-month').first().waitFor();
+ assert.equal(await page.locator('.bd-month-head').first().textContent(),'SUN');
+ const heading=await page.locator('.bd-heading p').boundingBox(),touch=await context.newCDPSession(page);
+ await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:heading.x+280,y:heading.y+8}]});await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:heading.x+80,y:heading.y+8}]});await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ assert.equal(await page.locator('[data-view=day]').getAttribute('class'),'active','swipe left opens Day');
+ await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:heading.x+280,y:heading.y+8}]});await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:heading.x+80,y:heading.y+8}]});await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ assert.equal(await page.locator('[data-view=week]').getAttribute('class'),'active','second swipe opens Week');
+ await page.locator('[data-page=settings]:visible').click();await page.locator('[data-settings-section=appearance]').click();await page.locator('[name=categoryColor0]').fill('#123456');await page.locator('#bd-settings>.bd-primary').click();
+ await page.locator('[data-settings-section=sharing]').click();await page.locator('[data-action=share]').click();const padded=today.split('-').map((x,i)=>i?x.padStart(2,'0'):x).join('-');await page.locator('#bd-share-from').fill(padded);await page.locator('#bd-share-to').fill(padded);await page.locator('[data-action=publish]').click();await page.waitForFunction(()=>JSON.parse(localStorage.getItem('bedo-share')||'{}').token);
+ assert.equal(publicData.blocks.length,1);assert.equal(publicData.blocks[0].id,'visible');assert.equal(publicData.profile.categoryColors.Personal,'#123456');
+ await page.locator('[data-action=close]').click();await page.locator('[data-page=calendar]:visible').click();await page.locator('[data-view=month]').click();await page.locator(`.bd-month-day[data-date="${today}"]`).first().click();await page.locator('[data-edit=visible]').click();await page.locator('[name=title]').fill('Live update');await page.locator('#bd-block-form .bd-primary').click();await page.waitForFunction(()=>window.BedoSync.getStatus().state==='error');
+ assert(publishes>=2);assert.equal(publicData.blocks[0].title,'Live update','public range updates after edits even if Drive permission needs reconnection');
+ const viewer=await context.newPage();await viewer.goto((process.env.BEDO_TEST_BASE||'http://localhost:8766')+'/?share='+token,{waitUntil:'domcontentloaded'});await viewer.getByText('Live update').waitFor();assert.equal(await viewer.getByText('Not shared').count(),0);
+ await browser.close();console.log('PASS Sunday week, view swipes, category colors, selected-day live sharing and public viewer');
+})().catch(e=>{console.error(e);process.exit(1)});

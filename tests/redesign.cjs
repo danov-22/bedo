@@ -32,7 +32,7 @@ const base = process.env.BEDO_TEST_BASE || 'http://localhost:8765';
       await page.evaluate(()=>localStorage.setItem('bedo-blocks',JSON.stringify([{id:'real-private',title:'Original personal data',date:'2026-9-1',start:8,duration:1}])));
       await page.locator('#bd-demo-cta').click();
       await page.waitForURL('**/?demo=1');
-      await page.locator('.bd-month').waitFor();
+      await page.locator('.bd-month').first().waitFor();
       assert.equal(await page.locator('.bd-segments [data-view=month]').getAttribute('class'),'active');
       assert(await page.locator('.bd-day-celebration').count()>0,'demo includes completed-day examples');
       assert.equal(await page.locator('.bd-day-completed').first().textContent(),'🎯');

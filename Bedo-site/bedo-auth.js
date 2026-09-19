@@ -8,6 +8,24 @@
   const demoKeys = privateKeys.concat(["bedo-theme", "bedo-reminders", "bedo-locked", "bedo-calendar-hours", "bedo-appscript", "bedo-sync-pending"]);
   const demoBackupKey = "bedo-demo-backup";
   const defaultApiUrl = window.BEDO_API_URL;
+  const driveScope = "https://www.googleapis.com/auth/drive.appdata";
+  let driveToken = null, driveTokenExpires = 0, driveRequest = null;
+  function requestDriveAccess(interactive) {
+    if (driveToken && Date.now() < driveTokenExpires - 60000) return Promise.resolve(driveToken);
+    if (driveRequest) return driveRequest;
+    driveRequest = new Promise((resolve, reject) => {
+      const started=Date.now(),begin=()=>{
+      if (!window.google?.accounts?.oauth2) { if(Date.now()-started<5000){setTimeout(begin,100);return;} driveRequest=null;reject(new Error("Google Drive authorization could not load."));return; }
+      const client = google.accounts.oauth2.initTokenClient({ client_id: clientId, scope: driveScope, callback: response => {
+        driveRequest = null;
+        if (response.error || !response.access_token) { reject(new Error(response.error_description || "Google Drive access was not granted.")); return; }
+        driveToken = response.access_token; driveTokenExpires = Date.now() + Number(response.expires_in || 3600) * 1000; resolve(driveToken);
+      }, error_callback: () => { driveRequest = null; reject(new Error("Google Drive authorization was cancelled.")); } });
+      client.requestAccessToken({ prompt: interactive ? "consent" : "" });
+      };begin();
+    });
+    return driveRequest;
+  }
 
   function decodeCredential(credential) {
     const payload = credential.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
@@ -84,7 +102,7 @@
       { id: "demo-7", title: "Learn something new", category: "Study", start: 15, duration: .75, date: key, completed: false },
       { id: "demo-8", title: "Dinner + unwind", category: "Personal", start: 18, duration: 1, date: key, completed: false }
     ];
-    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() + 6) % 7);
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
     for (let offset = -7; offset < 14; offset++) {
       const day = new Date(monday); day.setDate(day.getDate() + offset);
       const date = [day.getFullYear(), day.getMonth() + 1, day.getDate()].join("-");
@@ -161,14 +179,14 @@
   }
   function signOut() {
     if (!confirm("Sign out of bedo on this device? Your local data will remain here.")) return;
-    switchWorkspace(""); window.google?.accounts?.id?.disableAutoSelect();
+    switchWorkspace(""); window.google?.accounts?.id?.disableAutoSelect(); if (driveToken) window.google?.accounts?.oauth2?.revoke(driveToken); driveToken=null;
     localStorage.removeItem(credentialKey); localStorage.removeItem(userKey); localStorage.removeItem(sessionKey); localStorage.removeItem("bedo-welcome-complete"); location.href = "/";
   }
   function switchAccount() {
-    switchWorkspace(""); window.google?.accounts?.id?.disableAutoSelect();
+    switchWorkspace(""); window.google?.accounts?.id?.disableAutoSelect(); if (driveToken) window.google?.accounts?.oauth2?.revoke(driveToken); driveToken=null;
     localStorage.removeItem(credentialKey); localStorage.removeItem(userKey); localStorage.removeItem(sessionKey); localStorage.removeItem("bedo-welcome-complete"); location.href = "/login";
   }
-  window.BedoAuth = { signOut, switchAccount, currentUser };
+  window.BedoAuth = { signOut, switchAccount, currentUser, requestDriveAccess, hasDriveAccess:()=>Boolean(driveToken&&Date.now()<driveTokenExpires-60000) };
   const params = new URLSearchParams(location.search);
   if (params.has("demo")) prepareDemo();
   if (!params.has("demo") && localStorage.getItem(demoBackupKey)) restoreDemo();

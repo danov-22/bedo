@@ -2,29 +2,28 @@
 
 The frontend reads your OAuth **Web client ID** from `Bedo-site/auth-config.js`. Never put a client secret in the website.
 
-1. Open [Google's setup guide](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid). Create or select a Google Cloud project, configure Google Auth Platform branding/audience, and create a Web application OAuth client.
-2. Add `https://b-do.vercel.app` as an Authorized JavaScript origin. For local testing, add `http://localhost:8765`. This uses the JavaScript callback, not a redirect-based login. While your audience is in Testing, add your own Gmail account as a test user.
-3. Send the Web client ID ending in `.apps.googleusercontent.com` so it can be entered in `Bedo-site/auth-config.js` and deployed.
-4. In your existing Sheet's Apps Script project, replace the code with this repository's `Google-Apps-Script/Code.gs`.
-5. Under Project Settings → Script properties, add `OAUTH_CLIENT_ID` with exactly the same Web client ID. Leave `SESSION_SECRET` alone; the script creates it automatically.
-6. Run `setupSheets` and approve access. Deploy → Manage deployments → Edit your existing Web app → New version → Deploy. Keep Execute as **Me** and access **Anyone**. Updating that existing deployment keeps your `/exec` URL unchanged.
+1. Create or select a Google Cloud project, configure Google Auth Platform branding/audience, and create a Web application OAuth client.
+2. Add `https://b-do.vercel.app` as an Authorized JavaScript origin. For local testing, add `http://localhost:8765`. While the app is in Testing, add your Gmail account as a test user.
+3. Enable the **Google Drive API** and add `https://www.googleapis.com/auth/drive.appdata` to the OAuth consent configuration. This lets BEDO access only its own hidden app-data folder.
+4. Put the Web client ID ending in `.apps.googleusercontent.com` in `Bedo-site/auth-config.js`.
+5. In the existing Sheet's Apps Script project, replace the code with this repository's `Google-Apps-Script/Code.gs`.
+6. Under Project Settings > Script properties, set `OAUTH_CLIENT_ID` to the same Web client ID. Leave `SESSION_SECRET` alone; the script creates it automatically.
+7. Run `setupSheets` and approve access. Use Deploy > Manage deployments > Edit > New version > Deploy. Keep Execute as **Me** and access **Anyone**. Updating the existing deployment preserves its `/exec` URL.
 
 ## Where records are saved
 
-- Browser local storage: immediate device copy, including offline changes. Clearing site data removes this copy; wait for a confirmed online save or download a backup first.
-- The Google Sheet attached to the deployed Apps Script: `Blocks` contains schedules; `Ideas` contains Brainstorm notes; `Settings` contains preferences and tour completion. `DailyNotes`, `Routines`, and `PublicSchedules` support other data. Each private row is keyed by the Google account's stable identity, not a user-entered email.
-- This is an **owner-managed Sheet**, located in the deploying owner's Drive. Users get separate app workspaces, not separate Google Sheets in their own Drives. The Sheet owner can read the stored data. Do not share the Sheet itself publicly.
+- Browser local storage: immediate device copy and offline changes.
+- User's Google Drive `appDataFolder`: private `bedo-data.json` with schedules, notes, preferences, and tour state.
+- Apps Script Sheet: signed sessions and deliberately published read-only schedule ranges only.
 
 ## Verify before launch
 
-1. Sign in using your test Gmail account. The first-sign-in tour should appear; finish or skip it.
-2. Add a schedule block and a Brainstorm note. In Settings → Your saved data, wait for “saved online” and a confirmed timestamp.
-3. Inspect the attached Sheet: check the `Blocks` and `Ideas` tabs for those records.
-4. Sign into the same account in another browser/device: both records should restore before editing is enabled.
-5. Sign into another account and verify it cannot see the first account's records.
-6. Edit offline: status must say on-device only; reconnect and check that online saving succeeds.
-7. Settings → How to use app → Replay app tour should work without creating any records.
+1. Sign in with a test Gmail account and complete or skip the tour.
+2. In Settings > Your account & data, select **Connect private Google Drive** and approve the app-data permission.
+3. Add a schedule block and Brainstorm note, then wait for “Saved online.”
+4. Sign in to the same account in another browser and confirm both records restore.
+5. Sign in to another account and confirm it cannot see the first account's records.
+6. Publish a chosen date range, open its link privately, and verify only those dates appear. Edit a shared block and confirm the public view refreshes.
+7. Test offline edits, reconnect, and confirm saving resumes.
 
-Private GET loads and requests without validated authentication are rejected by the updated backend. Redeploy the script before allowing real users to sign in. Failed initial loads do not upload an empty workspace.
-
-The current sync is snapshot-based, not collaborative real-time editing. Avoid editing the same account simultaneously on multiple devices. Device copies replaced during restore can be downloaded from Settings → Your saved data → Download previous device copy.
+The sync is snapshot-based, not collaborative editing. Avoid editing the same account simultaneously on multiple devices. Device backups remain available in Your account & data.
