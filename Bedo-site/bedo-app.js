@@ -17,6 +17,21 @@
   const time = hours => { const n = Math.round(hours*60); return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`; };
   const clockTime = hours => { const n=Math.round(hours*60); return new Date(2000,0,1,Math.floor(n/60),n%60).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); };
   const uid = () => crypto.randomUUID ? crypto.randomUUID() : `b-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  async function importGoogleCalendar(){
+    if(!window.BedoAuth?.requestCalendarAccess)throw Error('Calendar access is not available. Refresh BEDO and try again.');
+    const token=await window.BedoAuth.requestCalendarAccess(),from=new Date(),to=new Date(from);to.setMonth(to.getMonth()+3);
+    const query=new URLSearchParams({singleEvents:'true',orderBy:'startTime',showDeleted:'false',timeMin:from.toISOString(),timeMax:to.toISOString(),maxResults:'2500'});
+    const response=await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?'+query,{headers:{Authorization:'Bearer '+token}});
+    if(!response.ok){const body=await response.json().catch(()=>({})),message=body.error?.message||'Google Calendar could not be read.';if(response.status===403)throw Error(message+' Make sure the Google Calendar API and calendar.readonly OAuth scope are enabled in Google Cloud.');throw Error(message);}
+    const data=await response.json(),existing=read('bedo-blocks',[]),ids=new Set(existing.map(block=>block.googleEventId).filter(Boolean));let imported=0,skipped=0;
+    for(const event of data.items||[]){
+      if(event.status==='cancelled'||!event.start?.dateTime||!event.end?.dateTime||ids.has(event.id)){skipped++;continue;}
+      const start=new Date(event.start.dateTime),end=new Date(event.end.dateTime),duration=(end-start)/3600000;if(!Number.isFinite(duration)||duration<=0||duration>24||dateKey(start)!==dateKey(end)){skipped++;continue;}
+      existing.push({id:uid(),googleEventId:event.id,title:event.summary||'Google Calendar event',date:dateKey(start),start:start.getHours()+start.getMinutes()/60,duration,category:'Google Calendar',completed:false,source:'google-calendar'});ids.add(event.id);imported++;
+    }
+    const storedProfile=read('bedo-profile',{}),storedCategories=storedProfile.categories||['Personal','Work','Wellness','Study'];if(!storedCategories.includes('Google Calendar'))storedCategories.push('Google Calendar');storedProfile.categories=storedCategories;storedProfile.categoryColors={...(storedProfile.categoryColors||{}),'Google Calendar':storedProfile.categoryColors?.['Google Calendar']||'#165bdf'};
+    localStorage.setItem('bedo-profile',JSON.stringify(storedProfile));localStorage.setItem('bedo-blocks',JSON.stringify(existing));localStorage.setItem('bedo-calendar-choice','import');window.BedoSync?.changed();return {imported,skipped};
+  }
   const icons = { calendar:'▦', brainstorm:'✎', insights:'↗', settings:'⚙' };
   let blocks = read('bedo-blocks', []), ideas = read('bedo-ideas', []);
   let profile = read('bedo-profile', {});
@@ -310,7 +325,7 @@
     if(action==='share')shareDialog();if(action==='publish')publishShare();if(action==='unpublish')publishShare(true);
     if(action==='calendar-choice')calendarChoiceDialog(false);
     if(action==='calendar-fresh'){localStorage.setItem('bedo-calendar-choice','fresh');continueFirstRun();}
-    if(action==='calendar-import'){const status=document.getElementById('bd-calendar-import-status'),firstRun=document.getElementById('bd-dialog')?.dataset.firstRun==='true';b.disabled=true;status.textContent='Opening Google Calendar permission…';try{const result=await window.BedoCalendar.importEvents();status.textContent=`Imported ${result.imported} timed event${result.imported===1?'':'s'}. ${result.skipped?'All-day, duplicate, or unsupported events were skipped.':''}`;setTimeout(()=>{if(firstRun)continueFirstRun();else{document.getElementById('bd-dialog')?.remove();openWorkspace();}},700);}catch(error){status.textContent=error.message;b.disabled=false;}}
+    if(action==='calendar-import'){const status=document.getElementById('bd-calendar-import-status'),firstRun=document.getElementById('bd-dialog')?.dataset.firstRun==='true';b.disabled=true;status.textContent='Opening Google Calendar permission…';try{const result=await importGoogleCalendar();status.textContent=`Imported ${result.imported} timed event${result.imported===1?'':'s'}. ${result.skipped?'All-day, duplicate, or unsupported events were skipped.':''}`;setTimeout(()=>{if(firstRun)continueFirstRun();else{document.getElementById('bd-dialog')?.remove();openWorkspace();}},700);}catch(error){status.textContent=error.message;b.disabled=false;}}
     if(action==='theme'){write('bedo-theme',read('bedo-theme','light')==='dark'?'light':'dark');render();}
     if(action==='today'){selected=new Date();month=new Date();render();}
     if(action==='prev'||action==='next'){const delta=action==='prev'?-1:1;if(view==='month')month=new Date(month.getFullYear(),month.getMonth()+delta,1);else selected.setDate(selected.getDate()+delta*(view==='week'?7:1));render();}

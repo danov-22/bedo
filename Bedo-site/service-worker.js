@@ -1,7 +1,7 @@
-const CACHE = 'bedo-shell-v1';
+const CACHE = 'bedo-shell-v2';
 const SHELL = [
   '/', '/index.html', '/bedo-app.css', '/storage-migration.js',
-  '/app-config.js', '/auth-config.js', '/bedo-auth.js', '/bedo-sync.js', '/bedo-calendar.js',
+  '/app-config.js', '/auth-config.js', '/bedo-auth.js', '/bedo-sync.js',
   '/bedo-app.js', '/favicon.svg', '/manifest.webmanifest'
 ];
 
