@@ -30,13 +30,15 @@ const {chromium}=require(process.env.BEDO_PLAYWRIGHT_PATH);
  await page.locator('[data-action=close]').click();
  await page.locator('.bd-mobile-nav [data-page=settings]').click();
  await page.locator('[data-settings-section=guide]').click();await page.locator('[data-action=tour]').click();
- for(let i=0;i<9;i++){
+ for(let i=0;i<10;i++){
    await page.waitForTimeout(100);
+   if(i===1)assert((await page.locator('.bd-tour-layer').textContent()).includes('Swipe left or right'));
+   if(i===8)assert((await page.locator('.bd-tour-layer').textContent()).includes('live, read-only web link'));
    const bounds=await page.locator('.bd-tour-layer .bd-dialog').boundingBox();
    assert(bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=361&&bounds.y+bounds.height<=641,'tour panel fits mobile screen');
    assert(await page.locator('.bd-tour-frame').count(),'target is highlighted');
    const target=await page.locator('.bd-tour-frame').boundingBox();assert(target.height>0&&target.y+target.height<bounds.y,'highlight stays above the guide');
-   if(i===7)await page.screenshot({path:require('node:path').join(process.env.TEMP,'bedo-settings-tour-mobile.png')});
+   if(i===8)await page.screenshot({path:require('node:path').join(process.env.TEMP,'bedo-settings-tour-mobile.png')});
    const next=await page.locator('[data-action=tour-next]').boundingBox();
    assert(next.y+next.height<=640,'Next remains visible');
    await page.locator('[data-action=tour-next]').click();

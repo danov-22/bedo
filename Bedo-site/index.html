@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>bedo</title>
-    <meta name="theme-color" content="#007b38" />
+    <meta name="theme-color" content="#165bdf" />
     <meta name="description" content="bedo is a private, personal time-blocking planner with flexible themes and shareable schedules." />
     <meta name="robots" content="index, follow" />
     <meta property="og:title" content="bedo" />
@@ -18,8 +18,7 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="manifest" href="manifest.webmanifest" />
     <script>
-      if ("serviceWorker" in navigator) navigator.serviceWorker.getRegistrations().then(registrations => registrations.forEach(registration => registration.unregister()));
-      if ("caches" in window) caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith("bedo-")).map(key => caches.delete(key))));
+      if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("/service-worker.js"));
     </script>
     <script src="https://accounts.google.com/gsi/client" async></script>
     <script defer src="storage-migration.js"></script>

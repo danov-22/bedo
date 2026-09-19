@@ -20,7 +20,7 @@ bedo is a calm, self-hostable time-blocking planner for schedules, brainstorm no
 - Editable day rundowns to copy or open in WhatsApp
 - Replayable mobile-friendly tour and sectioned Settings
 - Blinking logo quick input: click first, then swipe the panel header or use tabs/arrow keys to switch Quick note / Add a block. Drafts survive switching; hold and drag the floating logo to reposition.
-- White surfaces with vivid green, blue, and red accents; stronger gray neutral and matching dark themes
+- White surfaces with vivid blue branding plus red, green, and strong gray-neutral theme choices
 - Blue, yellow, purple, and green schedule blocks
 - Optional custom label color for every category
 - Sunday-to-Saturday weeks and horizontal swipe between Calendar, Day, and Week
@@ -39,7 +39,7 @@ Upload `Bedo-site` to a static web host, or deploy the repository root with the 
 
 ## Launch configuration
 
-`Bedo-site/` contains the current frontend, original SVG logo, and configuration. Authentication, sync, and storage migration remain separate scripts. Unused legacy bundles, styles, and alternate logos have been removed; they remain recoverable from Git history. `service-worker.js` retires old installations rather than caching private data.
+`Bedo-site/` contains the current frontend, SVG logo, and configuration. Authentication, sync, and storage migration remain separate scripts. It is also an installable, offline-first PWA. Its service worker caches only the static application shell; schedules and notes remain in local storage and the user's private Drive app-data file. Offline edits sync after connectivity returns.
 
 The planner opens in Calendar view. Choose a day to open its timeline, or use Week for a seven-day overview (a day selector on phones/tablets). Drag a block by its handle with touch or a mouse; only that dated occurrence changes. Explicit daily, weekday, or weekly repeats create four weeks of independent occurrences. Categories are stored per block and editable in Settings. Brainstorm notes can become blocks; Insights use completed blocks for the selected week. Existing block records and storage keys are preserved.
 

@@ -116,7 +116,7 @@
     localStorage.setItem("bedo-blocks", JSON.stringify(samples));
     localStorage.setItem("bedo-demo-seed-version", "3");
     localStorage.setItem("bedo-demo-anchor-date", key);
-    localStorage.setItem("bedo-profile", JSON.stringify({ name: "Jamie", title: "Jamie’s bedo", theme: "sage" }));
+    localStorage.setItem("bedo-profile", JSON.stringify({ name: "Jamie", title: "Jamie’s bedo", theme: "ocean" }));
     localStorage.setItem("bedo-ideas", JSON.stringify([{ id: "demo-note-1", text: "A little idea for the weekend: take the camera out, find a new walking route, and make time for something creative.", created: new Date().toISOString() }]));
     localStorage.setItem("bedo-calendar-hours", JSON.stringify({ start: 7, end: 18 }));
     localStorage.setItem("bedo-appscript", "false");
@@ -197,7 +197,7 @@
     if (user && location.pathname !== "/login") {
       document.getElementById("bedo-google-button").innerHTML = '<a class="button primary" href="/?app=1">Open my bedo</a>';
       document.querySelector(".login-note").textContent = "Signed in as " + (user.email || user.name || "your Google account") + ".";
-    } else if (clientId) renderGoogleButton();
+    } else if (clientId && location.pathname === "/login") renderGoogleButton();
   }
   if (user) {
     new MutationObserver(() => mountAccount(user)).observe(document.documentElement, { childList: true, subtree: true });

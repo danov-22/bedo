@@ -2,10 +2,12 @@
   "name": "bedo",
   "short_name": "bedo",
   "description": "A calm, offline-first personal time-block planner.",
-  "start_url": "/",
+  "id": "/",
+  "start_url": "/?app=1",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#007b38",
+  "theme_color": "#165bdf",
   "icons": [
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]
