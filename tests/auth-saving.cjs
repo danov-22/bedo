@@ -24,6 +24,7 @@ const base=process.env.BEDO_TEST_BASE||'http://localhost:8765';
   await page.locator('#bd-fab').click();await page.locator('[name=text]').fill('Saved in my Drive');await page.locator('#bd-note-form .bd-primary').click();
   await page.waitForFunction(()=>window.BedoSync.getStatus().state==='saved');
   assert(driveWrites>0);assert(cloud.ideas.some(n=>n.text==='Saved in my Drive'));
+  assert((await page.evaluate(()=>JSON.parse(localStorage.getItem('bedo-autosave-backups')||'[]').length))>0,'edits create rolling device autosaves');
   await page.locator('[data-page=settings]:visible').click();await page.locator('[data-settings-section=account]').click();
   assert(await page.locator('#bd-saving-card').isVisible(),'saved data is merged into Account');
   assert((await page.locator('#bd-save-status').textContent()).includes('Google Drive'));
