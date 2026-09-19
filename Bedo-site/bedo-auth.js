@@ -141,7 +141,7 @@
     const screen = document.createElement("main");
     screen.id = "bedo-login";
     screen.className = "login-screen";
-    screen.innerHTML = '<section><div id="bedo-google-button"></div><p class="login-note"></p></section>';
+    screen.innerHTML = '<section><div id="bedo-google-button"></div><p class="login-note"></p><p class="bd-auth-legal">By continuing, you agree to the <a href="/terms.html">Terms</a> and acknowledge the <a href="/privacy.html">Privacy Policy</a>.</p></section>';
     document.body.appendChild(screen);
     if (!configured) {
       screen.querySelector(".login-note").textContent = "Google sign-in is not available yet. Explore the demo without an account.";
@@ -202,13 +202,13 @@
   if (!params.has("demo") && localStorage.getItem(demoBackupKey)) restoreDemo();
   const user = currentUser();
   const publicLanding = !params.has("share") && !params.has("app") && !params.has("demo");
-  if (user && publicLanding && location.pathname === "/") { location.replace("/?app=1"); return; }
+  if (user && (publicLanding || location.pathname === "/login")) { location.replace("/?app=1"); return; }
   if (!params.has("share") && (location.pathname === "/login" || publicLanding || (!user && !params.has("demo")))) {
     loginScreen(Boolean(clientId));
     if (user && location.pathname !== "/login") {
       document.getElementById("bedo-google-button").innerHTML = '<a class="button primary" href="/?app=1">Open my bedo</a>';
       document.querySelector(".login-note").textContent = "Signed in as " + (user.email || user.name || "your Google account") + ".";
-    } else if (clientId && location.pathname === "/login") renderGoogleButton();
+    } else if (!user && clientId && location.pathname === "/login") renderGoogleButton();
   }
   if (user) {
     new MutationObserver(() => mountAccount(user)).observe(document.documentElement, { childList: true, subtree: true });

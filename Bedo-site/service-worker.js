@@ -1,8 +1,8 @@
-const CACHE = 'bedo-shell-v2';
+const CACHE = 'bedo-shell-v3';
 const SHELL = [
   '/', '/index.html', '/bedo-app.css', '/storage-migration.js',
   '/app-config.js', '/auth-config.js', '/bedo-auth.js', '/bedo-sync.js',
-  '/bedo-app.js', '/favicon.svg', '/manifest.webmanifest'
+  '/bedo-app.js', '/favicon.svg', '/manifest.webmanifest', '/privacy.html', '/terms.html'
 ];
 
 self.addEventListener('install', event => {
@@ -22,9 +22,10 @@ self.addEventListener('fetch', event => {
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).then(response => {
       const copy = response.clone();
-      caches.open(CACHE).then(cache => cache.put('/index.html', copy));
+      const cacheKey = ['/privacy.html', '/terms.html'].includes(url.pathname) ? url.pathname : '/index.html';
+      caches.open(CACHE).then(cache => cache.put(cacheKey, copy));
       return response;
-    }).catch(() => caches.match('/index.html')));
+    }).catch(() => caches.match(url.pathname).then(match => match || caches.match('/index.html'))));
     return;
   }
 
