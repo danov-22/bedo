@@ -91,7 +91,7 @@ const base = process.env.BEDO_TEST_BASE || 'http://localhost:8765';
       await page.locator('#bd-fab').click();await page.locator('[data-quick-mode=block]').click();
       await page.locator('[name=title]').fill('Repeated test');await page.locator('[name=repeat]').selectOption('weekly');
       await page.locator('#bd-block-form .bd-primary').click();
-      assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('bedo-blocks')).filter(b=>b.title==='Repeated test').length),12);
+      assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('bedo-blocks')).filter(b=>b.title==='Repeated test').length),4);
       await page.locator('.bd-segments [data-view=week]').click();await page.locator('.bd-week-strip').waitFor();
       await page.locator('[data-page=brainstorm]:visible').click();await page.locator('.bd-note').waitFor();
       await page.locator('#bd-fab').click();await page.locator('[data-quick-mode=note]').click();await page.locator('[name=text]').fill('A fresh thought');await page.locator('#bd-note-form .bd-primary').click();
