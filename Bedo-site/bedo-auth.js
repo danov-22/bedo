@@ -4,7 +4,7 @@
   const credentialKey = "bedo-auth-credential";
   const userKey = "bedo-auth-user";
   const sessionKey = "bedo-auth-session";
-  const privateKeys = ["bedo-blocks", "bedo-ideas", "bedo-daily-notes", "bedo-routines", "bedo-profile", "bedo-share", "bedo-theme", "bedo-tour-state", "bedo-last-sync", "bedo-sync-pending"];
+  const privateKeys = ["bedo-blocks", "bedo-ideas", "bedo-daily-notes", "bedo-routines", "bedo-block-templates", "bedo-profile", "bedo-share", "bedo-theme", "bedo-tour-state", "bedo-last-sync", "bedo-sync-pending"];
   const demoKeys = privateKeys.concat(["bedo-theme", "bedo-reminders", "bedo-locked", "bedo-calendar-hours", "bedo-appscript", "bedo-sync-pending"]);
   const demoBackupKey = "bedo-demo-backup";
   const defaultApiUrl = window.BEDO_API_URL;

@@ -4,7 +4,7 @@
 if(new URLSearchParams(location.search).has('demo'))return;
 const api=localStorage.getItem('bedo-sync-url')||window.BEDO_API_URL,fileName='bedo-data.json';
 const read=(k,f)=>{try{return JSON.parse(localStorage.getItem(k))??f;}catch{return f;}};
-const keys={blocks:'bedo-blocks',ideas:'bedo-ideas',dailyNotes:'bedo-daily-notes',routines:'bedo-routines'};
+const keys={blocks:'bedo-blocks',ideas:'bedo-ideas',dailyNotes:'bedo-daily-notes',routines:'bedo-routines',templates:'bedo-block-templates'};
 let status={state:'local',message:'Autosaved on this device.'},initialized=false,busy=false,timer,fileId=null;
 function notify(state,message){status={state,message,lastSavedAt:localStorage.getItem('bedo-last-sync')};dispatchEvent(new CustomEvent('bedo-sync-status'));}
 function data(){return {...Object.fromEntries(Object.entries(keys).map(([k,v])=>[k,read(v,[])])),settings:[{id:'preferences',theme:read('bedo-theme','light'),profile:read('bedo-profile',{}),tour:read('bedo-tour-state',null),lastView:read('bedo-last-view',null)}]};}
