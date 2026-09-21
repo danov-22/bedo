@@ -50,7 +50,7 @@
   const isBedoBlock=block=>block?.source!=='google-calendar';
   const blockStatus=block=>!isBedoBlock(block)?'external':(block.completed?'done':(block.status||'planned'));
   const statusLabel=status=>({planned:'Planned',done:'Done',skipped:'Skipped',moved:'Moved',unconfirmed:'Unconfirmed',external:'Google Calendar'}[status]||'Planned');
-  function blockEnd(block){const end=fromKey(block.date);end.setMinutes(Math.round((Number(block.start)+Number(block.duration||0))*60));return end;}
+  function blockEnd(block){const end=fromKey(block.date);end.setHours(0,Math.round((Number(block.start)+Number(block.duration||0))*60),0,0);return end;}
   function reconcileBlockStatuses(){
     const now=new Date();let changed=false;
     blocks=blocks.map(block=>{
