@@ -9,7 +9,10 @@
   const demoBackupKey = "bedo-demo-backup";
   const defaultApiUrl = window.BEDO_API_URL;
   const driveScope = "https://www.googleapis.com/auth/drive.appdata";
-  let driveToken = null, driveTokenExpires = 0, driveRequest = null, calendarToken = null, calendarTokenExpires = 0, calendarRequest = null;
+  const driveTokenKey="bedo-drive-tab-token";
+  let cachedDrive={};try{cachedDrive=JSON.parse(sessionStorage.getItem(driveTokenKey)||"{}");}catch(_){}
+  let driveToken = cachedDrive.token || null, driveTokenExpires = Number(cachedDrive.expires||0), driveRequest = null, calendarToken = null, calendarTokenExpires = 0, calendarRequest = null;
+  if(Date.now()>=driveTokenExpires-60000){driveToken=null;driveTokenExpires=0;sessionStorage.removeItem(driveTokenKey);}
   function requestDriveAccess(interactive) {
     if (driveToken && Date.now() < driveTokenExpires - 60000) return Promise.resolve(driveToken);
     if (driveRequest) return driveRequest;
@@ -19,7 +22,7 @@
       const client = google.accounts.oauth2.initTokenClient({ client_id: clientId, scope: driveScope, callback: response => {
         driveRequest = null;
         if (response.error || !response.access_token) { reject(new Error(response.error_description || "Google Drive access was not granted.")); return; }
-        driveToken = response.access_token; driveTokenExpires = Date.now() + Number(response.expires_in || 3600) * 1000; resolve(driveToken);
+        driveToken = response.access_token; driveTokenExpires = Date.now() + Number(response.expires_in || 3600) * 1000; sessionStorage.setItem(driveTokenKey,JSON.stringify({token:driveToken,expires:driveTokenExpires})); resolve(driveToken);
       }, error_callback: () => { driveRequest = null; reject(new Error("Google Drive authorization was cancelled.")); } });
       client.requestAccessToken({ prompt: interactive ? "consent" : "" });
       };begin();
@@ -190,11 +193,11 @@
   function signOut() {
     if (!confirm("Sign out of bedo on this device? Your local data will remain here.")) return;
     switchWorkspace(""); window.google?.accounts?.id?.disableAutoSelect(); if (driveToken) window.google?.accounts?.oauth2?.revoke(driveToken); driveToken=null;
-    localStorage.removeItem(credentialKey); localStorage.removeItem(userKey); localStorage.removeItem(sessionKey); localStorage.removeItem("bedo-welcome-complete"); location.href = "/";
+    sessionStorage.removeItem(driveTokenKey);localStorage.removeItem(credentialKey); localStorage.removeItem(userKey); localStorage.removeItem(sessionKey); localStorage.removeItem("bedo-welcome-complete"); location.href = "/";
   }
   function switchAccount() {
     switchWorkspace(""); window.google?.accounts?.id?.disableAutoSelect(); if (driveToken) window.google?.accounts?.oauth2?.revoke(driveToken); driveToken=null;
-    localStorage.removeItem(credentialKey); localStorage.removeItem(userKey); localStorage.removeItem(sessionKey); localStorage.removeItem("bedo-welcome-complete"); location.href = "/login";
+    sessionStorage.removeItem(driveTokenKey);localStorage.removeItem(credentialKey); localStorage.removeItem(userKey); localStorage.removeItem(sessionKey); localStorage.removeItem("bedo-welcome-complete"); location.href = "/login";
   }
   window.BedoAuth = { signOut, switchAccount, currentUser, requestDriveAccess, requestCalendarAccess, hasDriveAccess:()=>Boolean(driveToken&&Date.now()<driveTokenExpires-60000) };
   const params = new URLSearchParams(location.search);
