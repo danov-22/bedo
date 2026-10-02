@@ -52,17 +52,17 @@ const {chromium}=require(process.env.BEDO_PLAYWRIGHT_PATH);
  await page.locator('[name=title]').fill('Block draft');
  await page.locator('[data-quick-mode=note]').click();assert.equal(await page.locator('[name=text]').inputValue(),'Draft to preserve');
  const touch=await page.context().newCDPSession(page);
- for(const expected of ['block','note']){
+  for(const expected of ['checklist','block','note']){
    const header=await page.locator('.bd-swipe-hint').boundingBox();
    await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:header.x+100,y:header.y+8}]});
    await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:header.x+55,y:header.y+8}]});
    await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-   await page.locator(expected==='block'?'#bd-block-form':'#bd-note-form').waitFor();
+    await page.locator(expected==='block'?'#bd-block-form':'#bd-note-form').waitFor();assert.equal(await page.locator(`[data-quick-mode=${expected}]`).getAttribute('aria-pressed'),'true');
  }
  assert.equal(await page.locator('[name=text]').inputValue(),'Draft to preserve');
- await page.locator('[data-quick-mode=note]').focus();await page.keyboard.press('ArrowRight');await page.locator('#bd-block-form').waitFor();
+  await page.locator('[data-quick-mode=note]').focus();await page.keyboard.press('ArrowRight');await page.locator('[data-quick-mode=checklist][aria-pressed=true]').waitFor();await page.keyboard.press('ArrowRight');await page.locator('#bd-block-form').waitFor();
  assert.equal(await page.locator('[name=title]').inputValue(),'Block draft');
- await page.keyboard.press('ArrowLeft');await page.locator('#bd-note-form').waitFor();
+  await page.keyboard.press('ArrowLeft');await page.locator('[data-quick-mode=checklist][aria-pressed=true]').waitFor();await page.keyboard.press('ArrowLeft');await page.locator('[data-quick-mode=note][aria-pressed=true]').waitFor();
  await page.screenshot({path:require('node:path').join(process.env.TEMP,'bedo-quick-input-mobile.png')});
  await page.locator('[data-action=close]').click();
  let fab;
