@@ -1,4 +1,4 @@
-const CACHE = 'bedo-shell-v14';
+const CACHE = 'bedo-shell-v15';
 const SHELL = [
   '/', '/index.html', '/bedo-app.css', '/storage-migration.js',
   '/app-config.js', '/auth-config.js', '/bedo-auth.js', '/bedo-sync.js',
