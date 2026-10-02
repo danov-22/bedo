@@ -507,7 +507,7 @@
     function reset(){bubble.hidden=true;clearTimeout(idleHintTimer);clearTimeout(idleDismissTimer);idleHintTimer=setTimeout(()=>{
       if(!fab.isConnected||document.hidden||tourActive||document.getElementById('bd-dialog')||document.body.classList.contains('bd-landing-open'))return;
       if(performance.now()-lastHintAt<180000){reset();return;}
-      lastHintAt=performance.now();bubble.textContent=['Got a thought to write?','Need a block to add?'][hintIndex++%2];bubble.hidden=false;
+      lastHintAt=performance.now();bubble.textContent=['Got a thought to write?','Need a block to add?','Take your time, you don’t need to rush it.'][hintIndex++%3];bubble.hidden=false;
       const rect=fab.getBoundingClientRect(),left=Math.max(8,Math.min(innerWidth-bubble.offsetWidth-8,rect.left+rect.width/2-bubble.offsetWidth/2));
       bubble.style.left=left+'px';bubble.style.top=Math.max(8,rect.top-bubble.offsetHeight-12)+'px';bubble.style.setProperty('--hint-arrow',rect.left+rect.width/2-left+'px');
       idleDismissTimer=setTimeout(reset,7000);
