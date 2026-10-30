@@ -122,6 +122,7 @@
     root.querySelectorAll('[data-block]').forEach(element=>{const block=blocks.find(item=>item.id===element.dataset.block);if(!block?.locked)return;element.classList.add('locked');const handle=element.querySelector('[data-drag]');if(handle){handle.disabled=true;handle.setAttribute('aria-label',block.title+' is locked');handle.textContent='🔒';}const resize=element.querySelector('[data-resize]');if(resize){resize.disabled=true;resize.setAttribute('aria-label',block.title+' is locked');}});
     if(page==='calendar'){
       const header=root.querySelector('.bd-top');header.classList.add('bd-calendar-header');
+      root.querySelector('.bd-date-nav')?.insertAdjacentHTML('beforeend',`<button class="bd-secondary" data-action="mark-day">${esc(profile.dayEmojis?.[dateKey(selected)]||'\u263a')} Mark a day</button>`);
       root.querySelector('.bd-heading')?.insertAdjacentHTML('afterend',realityPrompt());
       if(view!=='month'){
         const select=document.createElement('button');select.className='bd-secondary bd-select-mode';select.dataset.action='select-mode';select.textContent=bulkSelecting?'Cancel selection':'Select blocks';root.querySelector('.bd-date-nav')?.append(select);
@@ -195,13 +196,13 @@
     let html='<div class="bd-month">'+['SUN','MON','TUE','WED','THU','FRI','SAT'].map(d=>`<div class="bd-month-head">${d}</div>`).join('');
     for(let i=0;i<42;i++) {
       const d=new Date(start);d.setDate(start.getDate()+i);const list=visible(d),complete=dayCompleted(d);
-      html+=`<button class="bd-month-day ${d.getMonth()!==calendarMonth.getMonth()?'muted':''} ${d.getMonth()===calendarMonth.getMonth()&&dateKey(d)===dateKey(new Date())?'today':''}" data-date="${dateKey(d)}" aria-label="${esc(dateLabel(d,{dateStyle:'full'}))}, ${list.length} blocks${complete?', All blocks completed. Nice work!':''}"><span class="bd-date-number">${d.getDate()}</span>${dayStatus(d)}<div class="bd-day-dots">${list.slice(0,3).map(b=>`<i class="${tint(category(b))}" style="background:${categoryColor(category(b))}"></i>`).join('')}</div><div class="bd-month-events">${list.slice(0,2).map(b=>`<small class="${tint(category(b))}" style="${blockColorStyle(category(b))}">${esc(b.title)}</small>`).join('')}${list.length>2?`<em>+${list.length-2} more</em>`:''}</div></button>`;
+      html+=`<button class="bd-month-day ${profile.dayEmojis?.[dateKey(d)]?'has-marker':''} ${d.getMonth()!==calendarMonth.getMonth()?'muted':''} ${d.getMonth()===calendarMonth.getMonth()&&dateKey(d)===dateKey(new Date())?'today':''}" data-date="${dateKey(d)}" aria-label="${esc(dateLabel(d,{dateStyle:'full'}))}, ${list.length} blocks${profile.dayEmojis?.[dateKey(d)]?', Day emoji: '+esc(profile.dayEmojis[dateKey(d)]):''}${complete?', All blocks completed. Nice work!':''}"><span class="bd-date-number">${d.getDate()}</span>${dayStatus(d)}${dayMarker(d)}<div class="bd-day-dots">${list.slice(0,3).map(b=>`<i class="${tint(category(b))}" style="background:${categoryColor(category(b))}"></i>`).join('')}</div><div class="bd-month-events">${list.slice(0,2).map(b=>`<small class="${tint(category(b))}" style="${blockColorStyle(category(b))}">${esc(b.title)}</small>`).join('')}${list.length>2?`<em>+${list.length-2} more</em>`:''}</div></button>`;
     }
     return html+'</div>';
   }
   function monday() { const d=new Date(selected);d.setDate(d.getDate()-d.getDay());return d; }
   function weekCalendar() {
-    const start=monday(); return `<div class="bd-week-strip">${Array.from({length:7},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return `<button data-week-date="${dateKey(d)}" class="${dateKey(d)===dateKey(selected)?'active':''}"><span>${dateLabel(d,{weekday:'short'})}</span><b>${d.getDate()}</b><small>${visible(d).length} blocks</small></button>`;}).join('')}</div><div class="bd-week-grid">${Array.from({length:7},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return `<section><h3>${dateLabel(d,{weekday:'short',day:'numeric'})}</h3>${dayCalendar(d,true)}</section>`;}).join('')}</div><div class="bd-week-mobile">${dayCalendar(selected)}</div>`;
+    const start=monday(); return `<div class="bd-week-strip">${Array.from({length:7},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return `<button data-week-date="${dateKey(d)}" class="${dateKey(d)===dateKey(selected)?'active':''}"><span>${dateLabel(d,{weekday:'short'})}</span><b>${d.getDate()}</b>${dayMarker(d)}<small>${visible(d).length} blocks</small></button>`;}).join('')}</div><div class="bd-week-grid">${Array.from({length:7},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return `<section><h3>${dateLabel(d,{weekday:'short',day:'numeric'})}</h3>${dayCalendar(d,true)}</section>`;}).join('')}</div><div class="bd-week-mobile">${dayCalendar(selected)}</div>`;
   }
   function checklist(){
     const start=monday(),end=new Date(start);end.setDate(end.getDate()+6);const weight={high:0,normal:1,low:2},rank={unconfirmed:0,planned:1,external:1,skipped:2,moved:2,done:3};
@@ -313,6 +314,17 @@
       navigator.clipboard?.writeText(url).catch(()=>{});
     }catch(error){status.textContent=error.message;}
   }
+  const dayEmojis=['⭐','🎉','🎂','❤️','🌿','☀️','🌙','🏖️','✈️','🏠','💼','📚','🎯','💪','☕','🎵','🎨','💡','🔥','🌈','🧘','🏆','💤','📌'];
+  function dayMarker(day){const emoji=profile.dayEmojis?.[dateKey(day)];return emoji?`<span class="bd-day-marker" role="img" aria-label="Day emoji: ${esc(emoji)}">${esc(emoji)}</span>`:'';}
+  function markDayDialog(){
+    dialog(`<h2>Make a day stand out.</h2><p>Choose a date, then pick an emoji. It will appear on your calendar.</p><label>Date<input id="bd-marker-date" type="date" value="${inputDate(dateKey(selected))}" required></label><div class="bd-emoji-grid" aria-label="Choose a day emoji">${dayEmojis.map(emoji=>`<button data-day-emoji="${emoji}" aria-label="Mark day with ${emoji}" aria-pressed="${profile.dayEmojis?.[dateKey(selected)]===emoji}">${emoji}</button>`).join('')}</div><button class="bd-secondary" data-action="remove-day-emoji">Remove emoji</button>`);
+    document.getElementById('bd-marker-date').addEventListener('change',event=>{const current=profile.dayEmojis?.[dateKey(fromKey(event.target.value))];document.querySelectorAll('[data-day-emoji]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.dayEmoji===current)));});
+  }
+  function setDayEmoji(emoji){
+    const input=document.getElementById('bd-marker-date');if(!input?.reportValidity())return;
+    const key=dateKey(fromKey(input.value)),markers={...profile.dayEmojis};if(emoji)markers[key]=emoji;else delete markers[key];
+    profile={...profile,dayEmojis:markers};write('bedo-profile',profile);document.getElementById('bd-dialog')?.remove();render();
+  }
   function dialog(content) { document.getElementById('bd-dialog')?.remove(); const layer=document.createElement('div');layer.id='bd-dialog';layer.className='bd-dialog-layer';layer.innerHTML=`<section class="bd-dialog" role="dialog" aria-modal="true"><button class="bd-dialog-close" data-action="close" aria-label="Close dialog">×</button>${content}</section>`;document.body.appendChild(layer);layer.querySelector('input,textarea')?.focus(); }
   function calendarChoiceDialog(firstRun=false){dialog(`<span class="bd-kicker">OPTIONAL GOOGLE CALENDAR IMPORT</span><h2>Bring your existing schedule?</h2><p>Import timed events from your primary Google Calendar for the next three months, or start with a clean BEDO. This is a one-time copy—not two-way synchronization. BEDO requests read-only access only if you import.</p><button class="bd-primary" data-action="calendar-import">Use my Google Calendar</button><button class="bd-secondary" data-action="calendar-fresh">Start fresh</button><p id="bd-calendar-import-status" role="status"></p>`);document.getElementById('bd-dialog').dataset.firstRun=String(firstRun);}
   function continueFirstRun(){document.getElementById('bd-dialog')?.remove();if(!read('bedo-tour-state',{}).completed)startTour();}
@@ -365,6 +377,7 @@
     if(b.dataset.weekDate){selected=fromKey(b.dataset.weekDate);render();window.scrollTo(0,0);}
     if(b.dataset.filter){filter=b.dataset.filter;render();}
     if(b.dataset.selectBlock){const id=b.dataset.selectBlock;selectedBlockIds.has(id)?selectedBlockIds.delete(id):selectedBlockIds.add(id);render();}
+    if(b.dataset.dayEmoji){setDayEmoji(b.dataset.dayEmoji);return;}
     if(b.dataset.edit)blockDialog(b.dataset.edit);
     if(b.dataset.complete){blocks=blocks.map(x=>x.id===b.dataset.complete&&isBedoBlock(x)?{...x,status:blockStatus(x)==='done'?'planned':'done',completed:blockStatus(x)!=='done'}:x);save();render();}
     if(b.dataset.reality){if(b.dataset.reality==='move')moveBlockDialog(b.dataset.id);else{blocks=blocks.map(item=>item.id===b.dataset.id&&isBedoBlock(item)?{...item,status:b.dataset.reality,completed:b.dataset.reality==='done'}:item);save();render();}}
@@ -410,6 +423,8 @@
     if(action==='close')document.getElementById('bd-dialog')?.remove();
     if(action==='exit')window.BedoDemo?.exit();if(action==='switch')window.BedoAuth?.switchAccount();if(action==='signout')window.BedoAuth?.signOut();
     if(action==='share')shareDialog();if(action==='publish')publishShare();if(action==='unpublish')publishShare(true);
+    if(action==='mark-day')markDayDialog();
+    if(action==='remove-day-emoji')setDayEmoji(null);
     if(action==='calendar-choice')calendarChoiceDialog(false);
     if(action==='insights-toggle'){insightsExpanded=!insightsExpanded;render();}
     if(b.dataset.insightPeriod){insightPeriod=b.dataset.insightPeriod;render();}
